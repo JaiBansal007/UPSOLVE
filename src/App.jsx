@@ -11,6 +11,7 @@ import { storage } from './services/firebaseStorage';
 import { codeforcesAPI } from './services/codeforcesApi';
 import { setupPresence, auth, registerUser } from './services/firebase';
 import { useOnlinePresence } from './hooks/useOnlinePresence';
+import { onAuthStateChanged } from 'firebase/auth';
 
 // Theme Context
 const ThemeContext = createContext();
@@ -34,11 +35,20 @@ function App() {
   });
   const [isVerified, setIsVerified] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [authUser, setAuthUser] = useState(null);
 
   // Online presence and stats hook
   const { onlineCount, onlineUsers, totalVisits, registeredUsers } = useOnlinePresence(cfHandle);
 
-  // Load settings on mount
+  // Listen for auth state changes
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setAuthUser(user);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Load settings when auth user changes
   useEffect(() => {
     const loadSettings = async () => {
       setInitialLoading(true);
@@ -60,8 +70,12 @@ function App() {
               // Verification expires after 30 days
               const isExpired = Date.now() - parsed.timestamp > (30 * 24 * 60 * 60 * 1000);
               setIsVerified(parsed.verified && !isExpired);
+            } else {
+              setIsVerified(false);
             }
           }
+        } else {
+          setIsVerified(false);
         }
         
         // Load problems for the user's CF handle
@@ -77,9 +91,15 @@ function App() {
         setInitialLoading(false);
       }
     };
-    loadSettings();
+    
+    // Only load settings if we have an auth user (or if auth is null for anonymous)
+    if (authUser !== undefined) {
+      loadSettings();
+    }
+  }, [authUser]); // Re-run when auth user changes
 
-    // Check CF API status
+  // Check CF API status on mount
+  useEffect(() => {
     checkCfApiStatus();
   }, []);
 
@@ -360,7 +380,10 @@ function App() {
                   ? 'border-gray-600 border-t-purple-500' 
                   : 'border-purple-200 border-t-purple-600'
               }`}></div>
-              <p className="font-medium">Loading your data...</p>
+              <p className="font-medium">Fetching user details...</p>
+              <p className={`text-sm mt-2 ${darkMode ? 'text-gray-500' : 'text-purple-500'}`}>
+                Please wait while we load your profile
+              </p>
             </div>
           ) : currentPage === 'home' ? (
             <Landing 
