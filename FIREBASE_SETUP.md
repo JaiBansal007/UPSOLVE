@@ -17,7 +17,44 @@ service cloud.firestore {
 }
 ```
 
-## 🔐 Authentication Setup (Required)
+## � Realtime Database Rules (Required for bug reports & presence)
+
+Go to **Realtime Database** → **Rules** and paste:
+
+```json
+{
+  "rules": {
+    "presence": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "stats": {
+      ".read": true,
+      ".write": true
+    },
+    "registeredUsers": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "bugReports": {
+      ".read": "auth != null",
+      "$reportId": {
+        ".write": "auth != null"
+      }
+    },
+    "bugReportCounts": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    }
+  }
+}
+```
+
+## �🔐 Authentication Setup (Required)
 
 1. Go to [Firebase Console](https://console.firebase.google.com/)
 2. Select your project: **cf-upsolve**

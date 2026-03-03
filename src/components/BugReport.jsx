@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { LuBug, LuX, LuSend, LuCheckCircle, LuAlertTriangle, LuInfo } from 'react-icons/lu';
+import { LuBug, LuX, LuSend, LuCircleCheck, LuTriangleAlert, LuInfo } from 'react-icons/lu';
 import { submitBugReport, getUserDailyReportCount, auth } from '../services/firebase';
 
 const MAX_DAILY = 5;
@@ -31,46 +31,31 @@ export default function BugReport({ isOpen, onClose, cfHandle }) {
     fetchDailyCount();
   }, [isOpen]);
 
+  const handleClose = () => {
+    setError('');
+    setSuccess(false);
+    setReportText('');
+    onClose();
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!reportText.trim()) {
-      setError('Please describe the bug');
-      return;
-    }
-
-    if (reportText.trim().length < 10) {
-      setError('Please provide more detail (at least 10 characters)');
-      return;
-    }
+    const trimmed = reportText.trim();
+    if (!trimmed) { setError('Please describe the bug.'); return; }
+    if (trimmed.length < MIN_LEN) { setError(`Please provide at least ${MIN_LEN} characters.`); return; }
 
     setSubmitting(true);
     setError('');
-
     try {
       const user = auth.currentUser;
-      if (!user) {
-        throw new Error('You must be logged in to report a bug');
-      }
-
-      await submitBugReport(
-        user.uid,
-        user.email || 'No email',
-        cfHandle,
-        reportText.trim()
-      );
-
+      if (!user) throw new Error('You must be signed in to submit a report.');
+      await submitBugReport(user.uid, user.email || 'No email', cfHandle, trimmed);
       setSuccess(true);
       setReportText('');
       setDailyCount(prev => prev + 1);
-      
-      // Auto close after success
-      setTimeout(() => {
-        setSuccess(false);
-        onClose();
-      }, 2000);
+      setTimeout(() => { setSuccess(false); handleClose(); }, 2500);
     } catch (err) {
-      setError(err.message || 'Failed to submit report');
+      setError(err.message || 'Failed to submit report. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -78,127 +63,129 @@ export default function BugReport({ isOpen, onClose, cfHandle }) {
 
   if (!isOpen) return null;
 
-  const remainingReports = 5 - dailyCount;
+  const remaining = MAX_DAILY - dailyCount;
+  const limitReached = remaining <= 0;
+  const charCount = reportText.length;
+  const nearLimit = charCount >= MAX_LEN * 0.9;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={handleClose} />
+
       {/* Modal */}
-      <div className={`relative w-full max-w-md rounded-xl shadow-2xl p-6 ${
-        darkMode ? 'bg-gray-800' : 'bg-white'
-      }`}>
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <h3 className={`text-lg font-bold flex items-center gap-2 ${
-            darkMode ? 'text-white' : 'text-gray-800'
-          }`}>
-            <span>🐛</span> Report a Bug
-          </h3>
-          <button
-            onClick={onClose}
-            className={`p-1 rounded-lg transition-colors ${
-              darkMode ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'
-            }`}
-          >
-            ✕
-          </button>
-        </div>
+      <div className="relative w-full max-w-md rounded-2xl border border-white/8 bg-[#0d0d0d] shadow-2xl overflow-hidden">
+        {/* Top accent line */}
+        <div className="h-px w-full bg-gradient-to-r from-transparent via-violet-500/50 to-transparent" />
 
-        {success ? (
-          <div className="text-center py-8">
-            <div className="text-4xl mb-4">✅</div>
-            <p className={`font-medium ${darkMode ? 'text-green-400' : 'text-green-600'}`}>
-              Bug report submitted successfully!
-            </p>
-            <p className={`text-sm mt-2 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              Thank you for helping improve CF Upsolve!
-            </p>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit}>
-            {/* Daily limit info */}
-            <div className={`mb-4 p-3 rounded-lg ${
-              darkMode ? 'bg-gray-700' : 'bg-gray-100'
-            }`}>
-              <p className={`text-sm ${
-                darkMode ? 'text-gray-300' : 'text-gray-600'
-              }`}>
-                {loading ? (
-                  'Loading...'
-                ) : remainingReports > 0 ? (
-                  <>
-                    You can submit <strong className={darkMode ? 'text-purple-400' : 'text-purple-600'}>{remainingReports}</strong> more report{remainingReports !== 1 ? 's' : ''} today
-                  </>
-                ) : (
-                  <span className={darkMode ? 'text-red-400' : 'text-red-600'}>
-                    You've reached your daily limit (5 reports per day)
-                  </span>
-                )}
-              </p>
-            </div>
-
-            {/* Report text */}
-            <div className="mb-4">
-              <label className={`block text-sm font-medium mb-2 ${
-                darkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
-                Describe the bug
-              </label>
-              <textarea
-                value={reportText}
-                onChange={(e) => setReportText(e.target.value)}
-                placeholder="Please describe what went wrong, steps to reproduce, and what you expected to happen..."
-                rows={5}
-                disabled={remainingReports <= 0}
-                className={`w-full px-4 py-3 border rounded-lg transition-colors resize-none ${
-                  darkMode
-                    ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-500 focus:border-purple-500'
-                    : 'border-gray-300 bg-white text-gray-800 placeholder-gray-400 focus:border-purple-500'
-                } ${remainingReports <= 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-              />
-            </div>
-
-            {/* Error message */}
-            {error && (
-              <div className={`mb-4 p-3 rounded-lg ${
-                darkMode ? 'bg-red-900/50 text-red-300' : 'bg-red-100 text-red-700'
-              }`}>
-                {error}
+        <div className="p-6">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-violet-500/15 border border-violet-500/25 flex items-center justify-center">
+                <LuBug className="w-4 h-4 text-violet-400" />
               </div>
-            )}
-
-            {/* Submit button */}
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
-                  darkMode
-                    ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                    : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                }`}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={submitting || remainingReports <= 0}
-                className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
-                  darkMode
-                    ? 'bg-purple-600 hover:bg-purple-500 disabled:bg-gray-600 text-white'
-                    : 'bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white'
-                }`}
-              >
-                {submitting ? 'Submitting...' : 'Submit Report'}
-              </button>
+              <div>
+                <h3 className="text-base font-semibold text-white leading-tight">Report a Bug</h3>
+                <p className="text-xs text-gray-500 mt-0.5">Help us improve CF Upsolve</p>
+              </div>
             </div>
-          </form>
-        )}
+            <button
+              onClick={handleClose}
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-500 hover:text-gray-300 hover:bg-white/8 transition-colors"
+            >
+              <LuX className="w-4 h-4" />
+            </button>
+          </div>
+
+          {success ? (
+            <div className="text-center py-8">
+              <div className="w-14 h-14 rounded-full bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center mx-auto mb-4">
+                <LuCircleCheck className="w-7 h-7 text-emerald-400" />
+              </div>
+              <p className="text-white font-semibold text-base mb-1">Report submitted!</p>
+              <p className="text-gray-400 text-sm">Thanks for helping make CF Upsolve better.</p>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Daily quota */}
+              <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-white/4 border border-white/6">
+                <LuInfo className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+                <p className="text-xs text-gray-400">
+                  {loading ? (
+                    <span className="text-gray-500">Checking quota…</span>
+                  ) : limitReached ? (
+                    <span className="text-red-400">Daily limit reached — {MAX_DAILY} reports per day.</span>
+                  ) : (
+                    <>
+                      <span className="text-violet-400 font-medium">{remaining}</span>
+                      <span> report{remaining !== 1 ? 's' : ''} remaining today</span>
+                    </>
+                  )}
+                </p>
+              </div>
+
+              {/* Textarea */}
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wider">
+                  Description
+                </label>
+                <textarea
+                  value={reportText}
+                  onChange={(e) => {
+                    if (e.target.value.length <= MAX_LEN) setReportText(e.target.value);
+                    if (error) setError('');
+                  }}
+                  placeholder="Describe what went wrong, steps to reproduce, and what you expected to happen…"
+                  rows={5}
+                  disabled={limitReached}
+                  className="w-full px-3.5 py-3 rounded-xl bg-white/4 border border-white/8 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-violet-500/50 focus:bg-white/6 transition-all resize-none disabled:opacity-40 disabled:cursor-not-allowed"
+                />
+                <div className="flex justify-end mt-1">
+                  <span className={`text-xs tabular-nums ${nearLimit ? 'text-amber-400' : 'text-gray-600'}`}>
+                    {charCount}/{MAX_LEN}
+                  </span>
+                </div>
+              </div>
+
+              {/* Error */}
+              {error && (
+                <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20">
+                  <LuTriangleAlert className="w-3.5 h-3.5 text-red-400 shrink-0 mt-0.5" />
+                  <p className="text-xs text-red-400">{error}</p>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-2.5 pt-1">
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium text-gray-400 bg-white/5 hover:bg-white/8 hover:text-gray-200 border border-white/6 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting || limitReached}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-white bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                >
+                  {submitting ? (
+                    <>
+                      <span className="w-3.5 h-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                      Submitting…
+                    </>
+                  ) : (
+                    <>
+                      <LuSend className="w-3.5 h-3.5" />
+                      Submit
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
       </div>
     </div>
   );

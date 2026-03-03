@@ -1,5 +1,5 @@
 import Orb from './Orb';
-import { LuCode, LuZap, LuUsers, LuTag, LuShieldCheck, LuArrowRight, LuTrendingUp } from 'react-icons/lu';
+import { LuCode, LuZap, LuUsers, LuTag, LuShieldCheck, LuArrowRight, LuTrendingUp, LuEye } from 'react-icons/lu';
 
 const features = [
   {
@@ -159,20 +159,25 @@ export default function Landing({ onNavigate, isVerified, stats = {} }) {
         </div>
 
         {/* Live stats bar */}
-        <div className="relative z-10 mt-12 flex justify-center gap-6 flex-wrap pointer-events-auto">
-          {[
-            { dot: true, color: '#4ade80', value: onlineCount, label: 'online now' },
-            { emoji: '👥', value: registeredUsers.toLocaleString(), label: 'users' },
-            { emoji: '👀', value: totalVisits.toLocaleString(), label: 'visits' },
-          ].map((s, i) => (
-            <div key={i} className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/[0.07] bg-white/[0.04] text-sm">
-              {s.dot
-                ? <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: s.color }} />
-                : <span>{s.emoji}</span>}
-              <span className="font-semibold text-white">{s.value}</span>
-              <span className="text-gray-500">{s.label}</span>
-            </div>
-          ))}
+        <div className="relative z-10 mt-12 flex justify-center gap-3 flex-wrap pointer-events-auto">
+          {/* Online now */}
+          <div className="flex items-center gap-2.5 px-4 py-2 rounded-xl border border-emerald-900/40 bg-emerald-950/30 text-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+            <span className="font-semibold text-emerald-300 tabular-nums">{onlineCount}</span>
+            <span className="text-emerald-600 text-xs">online now</span>
+          </div>
+          {/* Registered users */}
+          <div className="flex items-center gap-2.5 px-4 py-2 rounded-xl border border-white/[0.07] bg-white/[0.04] text-sm">
+            <LuUsers size={13} className="text-gray-500 shrink-0" />
+            <span className="font-semibold text-white tabular-nums">{registeredUsers.toLocaleString()}</span>
+            <span className="text-gray-500 text-xs">users</span>
+          </div>
+          {/* Total visits */}
+          <div className="flex items-center gap-2.5 px-4 py-2 rounded-xl border border-white/[0.07] bg-white/[0.04] text-sm">
+            <LuEye size={13} className="text-gray-500 shrink-0" />
+            <span className="font-semibold text-white tabular-nums">{totalVisits.toLocaleString()}</span>
+            <span className="text-gray-500 text-xs">visits</span>
+          </div>
         </div>
       </div>
 
