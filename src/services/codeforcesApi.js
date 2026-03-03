@@ -106,6 +106,32 @@ class CodeforcesAPI {
   }
 
   /**
+   * Get user info from Codeforces
+   * @param {string} handle - Codeforces user handle
+   * @returns {Promise<Object>} User info object
+   */
+  async getUserInfo(handle) {
+    try {
+      const response = await fetch(`${CF_API_BASE}/user.info?handles=${handle}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.status !== 'OK') {
+        throw new Error(data.comment || 'User not found');
+      }
+
+      return data.result[0];
+    } catch (error) {
+      console.error('Error fetching user info:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get all unique tags from cached problems
    * @returns {Promise<Array<string>>} Array of unique tag strings
    */
@@ -197,6 +223,65 @@ class CodeforcesAPI {
     } catch (error) {
       console.error('Error fetching solved problems:', error);
       return new Set();
+    }
+  }
+
+  /**
+   * Get recent contests
+   * @param {number} count - Number of contests to fetch
+   * @returns {Promise<Array>} Array of contest objects
+   */
+  async getRecentContests(count = 20) {
+    try {
+      const response = await fetch(`${CF_API_BASE}/contest.list`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.status !== 'OK') {
+        throw new Error(data.comment || 'API returned non-OK status');
+      }
+
+      // Filter finished contests and return the most recent ones
+      return data.result
+        .filter(contest => contest.phase === 'FINISHED')
+        .slice(0, count);
+    } catch (error) {
+      console.error('Error fetching recent contests:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get contest standings with problems
+   * @param {number} contestId - Contest ID
+   * @param {number} from - Starting rank (default 1)
+   * @param {number} count - Number of participants to fetch (default 1)
+   * @returns {Promise<Object>} Contest standings with problems
+   */
+  async getContestStandings(contestId, from = 1, count = 1) {
+    try {
+      const response = await fetch(
+        `${CF_API_BASE}/contest.standings?contestId=${contestId}&from=${from}&count=${count}`
+      );
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.status !== 'OK') {
+        throw new Error(data.comment || 'API returned non-OK status');
+      }
+
+      return data.result;
+    } catch (error) {
+      console.error('Error fetching contest standings:', error);
+      throw error;
     }
   }
 }
