@@ -15,13 +15,18 @@ class FirebaseStorageService {
   constructor() {
     this.settingsDocRef = null;
     this.initialized = false;
+    this.initializedUid = null;
   }
 
   /**
-   * Initialize the service and wait for auth
+   * Initialize the service and wait for auth.
+   * Re-initializes automatically if the signed-in user changes (e.g. anonymous → Google).
    */
   async initialize() {
-    if (this.initialized) return;
+    const currentUid = auth.currentUser?.uid ?? null;
+
+    // Re-initialize whenever the UID has changed (covers anon→Google transitions)
+    if (this.initialized && this.initializedUid === currentUid) return;
     
     try {
       await authPromise;
@@ -29,6 +34,7 @@ class FirebaseStorageService {
       if (user) {
         this.settingsDocRef = doc(db, `users/${user.uid}/settings/config`);
         this.initialized = true;
+        this.initializedUid = user.uid;
       }
     } catch (error) {
       console.error('Error initializing Firebase storage:', error);
@@ -242,14 +248,15 @@ class FirebaseStorageService {
     try {
       await this.initialize();
       
-      if (!this.settingsDocRef) {
-        console.warn('No settings doc ref - user may not be authenticated');
-        // Fall back to localStorage if not authenticated
+      const user = auth.currentUser;
+      if (!user) {
+        console.warn('No authenticated user - falling back to localStorage');
         localStorage.setItem('cf_settings', JSON.stringify(settings));
         return;
       }
       
-      await setDoc(this.settingsDocRef, settings, { merge: true });
+      const settingsRef = doc(db, `users/${user.uid}/settings/config`);
+      await setDoc(settingsRef, settings, { merge: true });
     } catch (error) {
       console.error('Error saving settings to Firestore:', error);
       // Fall back to localStorage on error
@@ -304,7 +311,8 @@ class FirebaseStorageService {
     try {
       await this.initialize();
       
-      if (!this.settingsDocRef) {
+      const user = auth.currentUser;
+      if (!user) {
         // Fall back to localStorage if not authenticated
         localStorage.setItem(`cf_verified_${cfHandle}`, JSON.stringify({
           verified: true,
@@ -314,7 +322,9 @@ class FirebaseStorageService {
         return;
       }
       
-      await setDoc(this.settingsDocRef, {
+      // Always use auth.currentUser.uid to avoid stale settingsDocRef
+      const settingsRef = doc(db, `users/${user.uid}/settings/config`);
+      await setDoc(settingsRef, {
         verification: {
           verified: true,
           timestamp: Date.now(),

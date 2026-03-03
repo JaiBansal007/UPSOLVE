@@ -35,8 +35,9 @@ function App() {
   const darkMode = true; // Always dark mode
   const [isVerified, setIsVerified] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [authUser, setAuthUser] = useState(null);
+  const [authUser, setAuthUser] = useState(undefined);
   const [showBugReport, setShowBugReport] = useState(false);
+
 
   // Online presence and stats hook
   const { onlineCount, onlineUsers, totalVisits, registeredUsers } = useOnlinePresence(cfHandle);
@@ -92,11 +93,22 @@ function App() {
         setInitialLoading(false);
       }
     };
+
+    const resetState = () => {
+      setCfHandle('');
+      setIsVerified(false);
+      setProblems([]);
+      setInitialLoading(false);
+    };
     
-    // Only load settings if we have an auth user (or if auth is null for anonymous)
-    if (authUser !== undefined) {
+    if (authUser) {
+      // Signed-in user: load their settings + verification from Firestore
       loadSettings();
+    } else if (authUser === null) {
+      // Explicitly signed out: reset all user state immediately
+      resetState();
     }
+    // authUser === undefined means Firebase hasn't resolved yet — wait
   }, [authUser]); // Re-run when auth user changes
 
   // Check CF API status on mount
