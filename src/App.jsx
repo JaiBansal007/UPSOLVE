@@ -14,6 +14,7 @@ import { codeforcesAPI } from './services/codeforcesApi';
 import { setupPresence, auth, registerUser, signOutUser } from './services/firebase';
 import { useOnlinePresence } from './hooks/useOnlinePresence';
 import { onAuthStateChanged } from 'firebase/auth';
+import { Analytics } from '@vercel/analytics/react';
 
 // Theme Context
 const ThemeContext = createContext();
@@ -453,6 +454,7 @@ function App() {
         />
       </div>
     </ThemeContext.Provider>
+    <Analytics />
     </AuthProvider>
   );
 }
