@@ -149,14 +149,50 @@ class CodeforcesAPI {
   }
 
   /**
+   * Sleep helper for rate limiting
+   * @param {number} ms - Milliseconds to sleep
+   */
+  sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Fetch with retry and exponential backoff
+   * @param {string} url - URL to fetch
+   * @param {number} retries - Number of retries
+   * @param {number} backoff - Initial backoff in ms
+   * @returns {Promise<Response>} Fetch response
+   */
+  async fetchWithRetry(url, retries = 3, backoff = 1000) {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const response = await fetch(url);
+        if (response.status === 429 || response.status === 503) {
+          const waitTime = backoff * Math.pow(2, attempt);
+          console.warn(`CF API rate limited (${response.status}), retrying in ${waitTime}ms...`);
+          await this.sleep(waitTime);
+          continue;
+        }
+        return response;
+      } catch (err) {
+        if (attempt === retries) throw err;
+        const waitTime = backoff * Math.pow(2, attempt);
+        console.warn(`Fetch failed, retrying in ${waitTime}ms...`, err);
+        await this.sleep(waitTime);
+      }
+    }
+    throw new Error('Max retries exceeded');
+  }
+
+  /**
    * Fetch user submissions
    * @param {string} handle - Codeforces user handle
-   * @param {number} count - Number of submissions to fetch (max 100000)
+   * @param {number} count - Number of submissions to fetch
    * @returns {Promise<Array>} Array of submission objects
    */
-  async fetchUserSubmissions(handle, count = 100000) {
+  async fetchUserSubmissions(handle, count = 10000) {
     try {
-      const response = await fetch(
+      const response = await this.fetchWithRetry(
         `${CF_API_BASE}/user.status?handle=${handle}&from=1&count=${count}`
       );
       

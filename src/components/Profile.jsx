@@ -42,13 +42,27 @@ export default function Profile({ darkMode, onProfileComplete, cfHandle, setCfHa
     try {
       const userInfo = await codeforcesAPI.getUserInfo(newHandle.trim());
       if (!userInfo) throw new Error('Handle not found on Codeforces. Check the spelling.');
+
+      const handleChanged = newHandle.trim().toLowerCase() !== cfHandle.toLowerCase();
+
       await storage.saveSettings({ cfHandle: newHandle.trim() });
       setCfHandle(newHandle.trim());
-      setSuccess(`Handle "${newHandle.trim()}" saved!`);
-      setIsVerified(false);
-      localStorage.removeItem(`cf_verified_${newHandle.trim()}`);
-      setShowVerification(true);
-      generateVerificationProblem();
+
+      if (handleChanged) {
+        // Only reset verification when the handle actually changes
+        setIsVerified(false);
+        localStorage.removeItem(`cf_verified_${cfHandle}`);
+        localStorage.removeItem(`cf_verified_${newHandle.trim()}`);
+        setShowVerification(true);
+        generateVerificationProblem();
+        setSuccess(`Handle changed to "${newHandle.trim()}". Please re-verify.`);
+      } else {
+        setSuccess(`Handle "${newHandle.trim()}" saved!`);
+        if (!isVerified) {
+          setShowVerification(true);
+          generateVerificationProblem();
+        }
+      }
     } catch (err) {
       setError(err.message || 'Failed to save handle');
     } finally { setSaving(false); }

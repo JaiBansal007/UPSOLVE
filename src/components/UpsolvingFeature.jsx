@@ -1,25 +1,43 @@
 import { useState, useEffect } from 'react';
 import { codeforcesAPI } from '../services/codeforcesApi';
 
+// How many recent contests to consider per division
+const MAX_CONTESTS = 20;
+
+function getCacheKey(handle, divisions) {
+  return `upsolve_cache_v3_${handle}_${[...divisions].sort().join('_')}`;
+}
+function loadCache(handle, divisions) {
+  try {
+    const raw = localStorage.getItem(getCacheKey(handle, divisions));
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+function saveCache(handle, divisions, data) {
+  try {
+    localStorage.setItem(getCacheKey(handle, divisions), JSON.stringify(data));
+  } catch (e) { console.warn('Failed to save upsolve cache', e); }
+}
+
 export default function UpsolvingFeature({ cfHandle, darkMode, onProblemAdd }) {
   const [loading, setLoading] = useState(false);
-  const [contests, setContests] = useState([]);
+  const [loadingStatus, setLoadingStatus] = useState('');
   const [upsolvingProblems, setUpsolvingProblems] = useState([]);
+  const [lastUpdated, setLastUpdated] = useState(null);
   const [error, setError] = useState('');
   const [addingProblem, setAddingProblem] = useState(null);
-  const [selectedDivisions, setSelectedDivisions] = useState(['Div. 2']); // Default to Div. 2
-  const [minRating, setMinRating] = useState(800); // Default min rating
-  const [maxRating, setMaxRating] = useState(2000); // Default max rating
+  const [selectedDivisions, setSelectedDivisions] = useState(['Div. 2']);
+  const [minRating, setMinRating] = useState(800);
+  const [maxRating, setMaxRating] = useState(2000);
 
   const divisions = ['Div. 1', 'Div. 2', 'Div. 3', 'Div. 4'];
-  
+
   // All valid ratings (multiples of 100, >= 800)
-  const ALL_RATINGS = Array.from({ length: 28 }, (_, i) => 800 + i * 100); // 800 to 3500
+  const ALL_RATINGS = Array.from({ length: 28 }, (_, i) => 800 + i * 100);
 
   const toggleDivision = (div) => {
     setSelectedDivisions(prev => {
       if (prev.includes(div)) {
-        // Don't allow deselecting all divisions
         if (prev.length === 1) return prev;
         return prev.filter(d => d !== div);
       }
@@ -28,7 +46,6 @@ export default function UpsolvingFeature({ cfHandle, darkMode, onProblemAdd }) {
   };
 
   const getContestDivision = (contestName) => {
-    // Check for division in contest name
     for (const div of divisions) {
       if (contestName.includes(div) || contestName.includes(div.replace('. ', ''))) {
         return div;
@@ -37,88 +54,98 @@ export default function UpsolvingFeature({ cfHandle, darkMode, onProblemAdd }) {
     return null;
   };
 
-  const fetchUpsolvingProblems = async () => {
+  // Fetch everything in 3 parallel-friendly calls, filter locally — no per-contest loops
+  const smartUpdate = async () => {
     setLoading(true);
     setError('');
 
     try {
-      // Fetch recent contests (we'll get more than 10 and filter)
-      const response = await fetch('https://codeforces.com/api/contest.list');
-      const data = await response.json();
-      
-      if (data.status !== 'OK') {
-        throw new Error('Failed to fetch contests');
+      // Step 1 + 2 in parallel: contest list & user submissions
+      setLoadingStatus('Fetching contests and submissions...');
+      const [contestRes, solvedSet, allProblems] = await Promise.all([
+        codeforcesAPI.fetchWithRetry('https://codeforces.com/api/contest.list').then(r => r.json()),
+        codeforcesAPI.getSolvedProblems(cfHandle),
+        codeforcesAPI.fetchAllProblems(),   // cached for 1 hr in codeforcesAPI
+      ]);
+
+      if (contestRes.status !== 'OK') throw new Error('Failed to fetch contest list');
+
+      setLoadingStatus('Filtering problems...');
+
+      // Build a map: contestId → { name, division, type } for the last MAX_CONTESTS per division
+      const contestMap = new Map();
+      const divisionCount = {};
+
+      for (const contest of contestRes.result) {
+        if (contest.phase !== 'FINISHED') continue;
+        const div = getContestDivision(contest.name);
+        if (!div || !selectedDivisions.includes(div)) continue;
+
+        divisionCount[div] = (divisionCount[div] || 0);
+        if (divisionCount[div] >= MAX_CONTESTS) continue;
+
+        contestMap.set(contest.id, {
+          name: contest.name,
+          division: div,
+          type: contest.type,
+        });
+        divisionCount[div]++;
       }
 
-      // Filter finished contests by selected divisions
-      const finishedContests = data.result
-        .filter(contest => contest.phase === 'FINISHED')
-        .filter(contest => {
-          const div = getContestDivision(contest.name);
-          return div && selectedDivisions.includes(div);
+      // Filter problemset: must be from one of our pool contests and not solved
+      const upsolvingProblemsData = allProblems
+        .filter(p => {
+          const cid = p.contestId;
+          if (!cid || !contestMap.has(cid)) return false;
+          const pid = `${cid}${p.index}`;
+          return !solvedSet.has(pid);
+        })
+        .map(p => {
+          const meta = contestMap.get(p.contestId);
+          return {
+            ...p,
+            contestName: meta.name,
+            contestType: meta.type,
+            contestDivision: meta.division,
+            url: codeforcesAPI.getProblemUrl(p.contestId, p.index),
+          };
         });
 
-      setContests(finishedContests.slice(0, 20)); // Just for display
-
-      // Get user's solved problems
-      const solvedProblems = await codeforcesAPI.getSolvedProblems(cfHandle);
-
-      // For each contest, find unsolved problems - STOP when we have 10
-      const upsolvingProblemsData = [];
-      const TARGET_PROBLEMS = 10;
-      
-      for (const contest of finishedContests) {
-        // Stop if we already have enough problems
-        if (upsolvingProblemsData.length >= TARGET_PROBLEMS) {
-          break;
-        }
-        
-        try {
-          // Fetch contest problems
-          const contestResponse = await fetch(`https://codeforces.com/api/contest.standings?contestId=${contest.id}&from=1&count=1`);
-          const contestData = await contestResponse.json();
-          
-          if (contestData.status === 'OK' && contestData.result.problems) {
-            const problems = contestData.result.problems;
-            
-            // Find unsolved problems in this contest
-            for (const problem of problems) {
-              // Stop if we already have enough problems
-              if (upsolvingProblemsData.length >= TARGET_PROBLEMS) {
-                break;
-              }
-              
-              const problemId = `${problem.contestId}${problem.index}`;
-              
-              if (!solvedProblems.has(problemId)) {
-                upsolvingProblemsData.push({
-                  ...problem,
-                  contestName: contest.name,
-                  contestType: contest.type,
-                  contestDivision: getContestDivision(contest.name),
-                  url: codeforcesAPI.getProblemUrl(problem.contestId, problem.index)
-                });
-              }
-            }
-          }
-        } catch (contestError) {
-          console.warn(`Failed to fetch contest ${contest.id}:`, contestError);
-        }
-      }
+      // Persist to localStorage
+      const now = new Date().toISOString();
+      saveCache(cfHandle, selectedDivisions, {
+        problems: upsolvingProblemsData,
+        lastUpdated: now,
+      });
 
       setUpsolvingProblems(upsolvingProblemsData);
-    } catch (error) {
-      setError('Failed to fetch upsolving problems. Please try again.');
-      console.error('Upsolving fetch error:', error);
+      setLastUpdated(now);
+    } catch (err) {
+      const isRateLimit = err.message?.includes('429') || err.message?.includes('503') || err.message?.includes('rate');
+      setError(
+        isRateLimit
+          ? 'Codeforces API is rate limiting requests. Please wait a moment and try again.'
+          : 'Failed to fetch upsolving problems. Please try again.'
+      );
+      console.error('Upsolving fetch error:', err);
     } finally {
       setLoading(false);
+      setLoadingStatus('');
     }
   };
 
   useEffect(() => {
-    if (cfHandle) {
-      fetchUpsolvingProblems();
+    if (!cfHandle) return;
+    // Immediately show cached data so the UI isn't blank while updating
+    const cache = loadCache(cfHandle, selectedDivisions);
+    if (cache?.problems?.length) {
+      setUpsolvingProblems(cache.problems);
+      setLastUpdated(cache.lastUpdated);
+    } else {
+      setUpsolvingProblems([]);
     }
+    // Then smart-update in the background
+    smartUpdate();
   }, [cfHandle, selectedDivisions]);
 
   // Filter problems by rating range
@@ -183,13 +210,20 @@ export default function UpsolvingFeature({ cfHandle, darkMode, onProblemAdd }) {
           <span className="text-2xl">🎯</span> Upsolving Recommendations
         </h3>
         
-        <button
-          onClick={fetchUpsolvingProblems}
-          disabled={loading}
-          className="px-4 py-2 rounded-lg font-medium transition-colors bg-purple-600 hover:bg-purple-500 disabled:bg-gray-700 text-white"
-        >
-          {loading ? 'Refreshing...' : 'Refresh'}
-        </button>
+        <div className="flex items-center gap-3">
+          {lastUpdated && !loading && (
+            <span className="text-xs text-gray-500">
+              Updated {new Date(lastUpdated).toLocaleTimeString()}
+            </span>
+          )}
+          <button
+            onClick={smartUpdate}
+            disabled={loading}
+            className="px-4 py-2 rounded-lg font-medium transition-colors bg-purple-600 hover:bg-purple-500 disabled:bg-gray-700 text-white"
+          >
+            {loading ? 'Updating...' : 'Check for New'}
+          </button>
+        </div>
       </div>
 
       {/* Division Filter */}
@@ -253,7 +287,8 @@ export default function UpsolvingFeature({ cfHandle, darkMode, onProblemAdd }) {
       <p className={`mb-6 ${
         darkMode ? 'text-gray-400' : 'text-gray-600'
       }`}>
-        All unsolved problems ({minRating}-{maxRating} rating) from recent 100 {selectedDivisions.join(' / ')} contests for <strong>{cfHandle}</strong>
+        Unsolved problems ({minRating}–{maxRating} rating) from the last {MAX_CONTESTS} {selectedDivisions.join(' / ')} contests for <strong>{cfHandle}</strong>.
+        Fetched from the full problemset in one shot — cached locally for instant reload.
       </p>
 
       {/* How recommendations work info */}
@@ -281,8 +316,9 @@ export default function UpsolvingFeature({ cfHandle, darkMode, onProblemAdd }) {
         <div className="text-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto mb-4 border-gray-400"></div>
           <p className="text-gray-400">
-            Analyzing recent contests and your submissions...
+            {loadingStatus || 'Fetching problems...'}
           </p>
+          <p className="text-xs text-gray-600 mt-2">Fetching from problemset — no per-contest loops, much faster</p>
         </div>
       )}
 
@@ -390,7 +426,7 @@ export default function UpsolvingFeature({ cfHandle, darkMode, onProblemAdd }) {
             All caught up!
           </h4>
           <p className="text-gray-400">
-            You've solved all problems up to the end from recent {selectedDivisions.join(' / ')} contests. Great job!
+            You've solved all problems from the last {MAX_CONTESTS} {selectedDivisions.join(' / ')} contests. Great job!
           </p>
         </div>
       )}
