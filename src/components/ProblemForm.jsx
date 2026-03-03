@@ -7,11 +7,14 @@ export default function ProblemForm({ onProblemAdded, loading: parentLoading, da
   const [customTags, setCustomTags] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+  const [success, setSuccess] = useState('');
   const { isGoogleUser } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
     setLoading(true);
 
     // Check authentication and verification
@@ -62,9 +65,16 @@ export default function ProblemForm({ onProblemAdded, loading: parentLoading, da
       // Call parent callback
       onProblemAdded(problemData);
 
-      // Reset form
+      // Reset form and show success
       setInput('');
       setCustomTags('');
+      setSuccess(`Added: ${problem.contestId}${problem.index} - ${problem.name}`);
+      
+      // Auto-close after success
+      setTimeout(() => {
+        setIsOpen(false);
+        setSuccess('');
+      }, 1500);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -72,136 +82,169 @@ export default function ProblemForm({ onProblemAdded, loading: parentLoading, da
     }
   };
 
+  const closeModal = () => {
+    setIsOpen(false);
+    setError('');
+    setSuccess('');
+  };
+
   return (
-    <div className={`rounded-xl shadow-lg p-6 border transition-colors duration-200 ${
-      darkMode 
-        ? 'bg-gray-800 border-gray-700' 
-        : 'bg-white border-purple-100'
-    }`}>
-      <h2 className={`text-xl font-bold mb-4 flex items-center gap-2 ${
-        darkMode ? 'text-gray-100' : 'text-purple-800'
-      }`}>
-        <span className="text-2xl">➕</span> Add New Problem
-      </h2>
-      
-      {/* Authentication and Verification Status */}
-      {!isGoogleUser() && (
-        <div className={`mb-4 p-3 rounded-lg border ${
-          darkMode
-            ? 'bg-yellow-900/20 border-yellow-700 text-yellow-300'
-            : 'bg-yellow-50 border-yellow-200 text-yellow-800'
-        }`}>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-lg">🔐</span>
-            <span className="font-medium text-sm">Authentication Required</span>
-          </div>
-          <p className="text-xs">
-            Please sign in with Google above to add problems to your personal tracker.
-          </p>
-        </div>
-      )}
-      
-      {isGoogleUser() && !isVerified && (
-        <div className={`mb-4 p-3 rounded-lg border ${
-          darkMode
-            ? 'bg-blue-900/20 border-blue-700 text-blue-300'
-            : 'bg-blue-50 border-blue-200 text-blue-800'
-        }`}>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-lg">✅</span>
-            <span className="font-medium text-sm">Verification Required</span>
-          </div>
-          <p className="text-xs">
-            Please verify your Codeforces handle in Settings to add problems.
-          </p>
-        </div>
-      )}
-      
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">
-            Problem ID or URL
-          </label>
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder='e.g., "1462 A" or "https://codeforces.com/problemset/problem/1462/A"'
-            disabled={!isGoogleUser() || !isVerified}
-            className={`w-full px-3 py-1.5 border rounded-lg text-sm transition-colors ${
-              !isGoogleUser() || !isVerified
-                ? darkMode
-                  ? 'border-gray-600 bg-gray-800 text-gray-500 cursor-not-allowed'
-                  : 'border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed'
-                : darkMode
-                  ? 'border-gray-600 bg-gray-700 text-white focus:ring-gray-500 focus:border-transparent'
-                  : 'border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-transparent'
-            }`}
-            required
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            Enter contest ID and index (e.g., "1462 A") or paste the problem URL
-          </p>
-        </div>
+    <>
+      {/* Add Problem Button */}
+      <button
+        onClick={() => setIsOpen(true)}
+        disabled={!isGoogleUser() || !isVerified}
+        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all shadow-md hover:shadow-lg ${
+          !isGoogleUser() || !isVerified
+            ? darkMode
+              ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            : darkMode
+              ? 'bg-purple-600 hover:bg-purple-500 text-white'
+              : 'bg-purple-600 hover:bg-purple-700 text-white'
+        }`}
+      >
+        <span className="text-xl">➕</span>
+        <span>Add Problem</span>
+      </button>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">
-            Custom Tags (optional)
-          </label>
-          <input
-            type="text"
-            value={customTags}
-            onChange={(e) => setCustomTags(e.target.value)}
-            placeholder='e.g., "practice, important, review"'
-            disabled={!isGoogleUser() || !isVerified}
-            className={`w-full px-3 py-1.5 border rounded-lg text-sm transition-colors ${
-              !isGoogleUser() || !isVerified
-                ? darkMode
-                  ? 'border-gray-600 bg-gray-800 text-gray-500 cursor-not-allowed'
-                  : 'border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed'
-                : darkMode
-                  ? 'border-gray-600 bg-gray-700 text-white focus:ring-gray-500 focus:border-transparent'
-                  : 'border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-transparent'
-            }`}
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            Separate multiple tags with commas
-          </p>
-        </div>
-
-        {error && (
-          <div className={`border px-3 py-2 rounded-lg text-sm ${
-            darkMode
-              ? 'bg-red-900/20 border-red-700 text-red-300'
-              : 'bg-red-50 border-red-200 text-red-700'
-          }`}>
-            {error}
-          </div>
-        )}
-
-        <button
-          type="submit"
-          disabled={loading || parentLoading || !isGoogleUser() || !isVerified}
-          className={`w-full font-semibold py-2 px-4 rounded-lg transition duration-200 shadow-md hover:shadow-lg text-sm ${
-            !isGoogleUser() || !isVerified
-              ? darkMode
-                ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              : darkMode
-                ? 'bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 text-white'
-                : 'bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 text-white'
-          }`}
+      {/* Modal Overlay */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          onClick={closeModal}
         >
-          {loading || parentLoading 
-            ? 'Adding Problem...' 
-            : !isGoogleUser() 
-              ? 'Sign in Required' 
-              : !isVerified 
-                ? 'Verification Required'
-                : 'Add Problem'
-          }
-        </button>
-      </form>
-    </div>
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+          
+          {/* Modal Content */}
+          <div 
+            className={`relative w-full max-w-md rounded-xl shadow-2xl p-6 border transition-all transform ${
+              darkMode 
+                ? 'bg-gray-800 border-gray-700' 
+                : 'bg-white border-purple-100'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close Button */}
+            <button
+              onClick={closeModal}
+              className={`absolute top-4 right-4 p-1 rounded-full transition-colors ${
+                darkMode 
+                  ? 'hover:bg-gray-700 text-gray-400 hover:text-gray-200' 
+                  : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <h2 className={`text-xl font-bold mb-4 flex items-center gap-2 ${
+              darkMode ? 'text-gray-100' : 'text-purple-800'
+            }`}>
+              <span className="text-2xl">➕</span> Add New Problem
+            </h2>
+            
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className={`block text-sm font-medium mb-1.5 ${
+                  darkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  Problem ID or URL
+                </label>
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder='e.g., "1462 A" or paste URL'
+                  autoFocus
+                  className={`w-full px-3 py-2 border rounded-lg text-sm transition-colors ${
+                    darkMode
+                      ? 'border-gray-600 bg-gray-700 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent'
+                      : 'border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-transparent'
+                  }`}
+                  required
+                />
+                <p className={`text-xs mt-1 ${
+                  darkMode ? 'text-gray-500' : 'text-gray-500'
+                }`}>
+                  Enter contest ID and index or paste the problem URL
+                </p>
+              </div>
+
+              <div>
+                <label className={`block text-sm font-medium mb-1.5 ${
+                  darkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  Custom Tags (optional)
+                </label>
+                <input
+                  type="text"
+                  value={customTags}
+                  onChange={(e) => setCustomTags(e.target.value)}
+                  placeholder='e.g., "practice, important, review"'
+                  className={`w-full px-3 py-2 border rounded-lg text-sm transition-colors ${
+                    darkMode
+                      ? 'border-gray-600 bg-gray-700 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent'
+                      : 'border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-transparent'
+                  }`}
+                />
+                <p className={`text-xs mt-1 ${
+                  darkMode ? 'text-gray-500' : 'text-gray-500'
+                }`}>
+                  Separate multiple tags with commas
+                </p>
+              </div>
+
+              {error && (
+                <div className={`border px-3 py-2 rounded-lg text-sm ${
+                  darkMode
+                    ? 'bg-red-900/20 border-red-700 text-red-300'
+                    : 'bg-red-50 border-red-200 text-red-700'
+                }`}>
+                  {error}
+                </div>
+              )}
+
+              {success && (
+                <div className={`border px-3 py-2 rounded-lg text-sm ${
+                  darkMode
+                    ? 'bg-green-900/20 border-green-700 text-green-300'
+                    : 'bg-green-50 border-green-200 text-green-700'
+                }`}>
+                  ✓ {success}
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className={`flex-1 font-medium py-2 px-4 rounded-lg transition-colors ${
+                    darkMode
+                      ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading || parentLoading}
+                  className={`flex-1 font-semibold py-2 px-4 rounded-lg transition-all shadow-md hover:shadow-lg ${
+                    darkMode
+                      ? 'bg-purple-600 hover:bg-purple-500 disabled:bg-gray-700 text-white'
+                      : 'bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 text-white'
+                  }`}
+                >
+                  {loading || parentLoading ? 'Adding...' : 'Add Problem'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

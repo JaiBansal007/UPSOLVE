@@ -1,238 +1,260 @@
-export default function Landing({ darkMode, onNavigate, isVerified, stats = {} }) {
+import Orb from './Orb';
+import { LuCode, LuZap, LuUsers, LuTag, LuShieldCheck, LuArrowRight, LuTrendingUp } from 'react-icons/lu';
+
+const features = [
+  {
+    icon: <LuCode size={20} />,
+    title: 'Problem Tracker',
+    description: 'Build your personal problem list, mark solved, filter by rating, and organize with tags.',
+    accent: '#a78bfa',
+    bg: 'rgba(139,92,246,0.07)',
+    border: 'rgba(139,92,246,0.18)',
+    requiresVerification: true,
+  },
+  {
+    icon: <LuZap size={20} />,
+    title: 'Smart Upsolving',
+    description: 'Get personalized recommendations from recent Div 1–4 contests. Focus on the right next problem.',
+    accent: '#fbbf24',
+    bg: 'rgba(251,191,36,0.07)',
+    border: 'rgba(251,191,36,0.18)',
+    requiresVerification: true,
+  },
+  {
+    icon: <LuUsers size={20} />,
+    title: 'User Comparison',
+    description: 'Compare any two CF users and find problems one has solved that the other hasn\'t.',
+    accent: '#34d399',
+    bg: 'rgba(52,211,153,0.07)',
+    border: 'rgba(52,211,153,0.18)',
+    requiresVerification: false,
+  },
+  {
+    icon: <LuTag size={20} />,
+    title: 'Tag & Filter',
+    description: 'Add custom tags, filter by difficulty range, and toggle tag visibility for spoiler-free practice.',
+    accent: '#60a5fa',
+    bg: 'rgba(96,165,250,0.07)',
+    border: 'rgba(96,165,250,0.18)',
+    requiresVerification: true,
+  },
+  {
+    icon: <LuTrendingUp size={20} />,
+    title: 'Progress Tracking',
+    description: 'See how many problems you\'ve solved vs. pending at a glance with live stats.',
+    accent: '#f472b6',
+    bg: 'rgba(244,114,182,0.07)',
+    border: 'rgba(244,114,182,0.18)',
+    requiresVerification: true,
+  },
+  {
+    icon: <LuShieldCheck size={20} />,
+    title: 'CF Verification',
+    description: 'Verify your Codeforces handle ownership securely — your data stays private.',
+    accent: '#6ee7b7',
+    bg: 'rgba(110,231,183,0.07)',
+    border: 'rgba(110,231,183,0.18)',
+    requiresVerification: false,
+  },
+];
+
+const steps = [
+  {
+    num: '01',
+    title: 'Sign In & Verify',
+    desc: 'Sign in with Google and verify your CF handle by submitting a compile-error solution.',
+    accent: '#a78bfa',
+  },
+  {
+    num: '02',
+    title: 'Add Problems',
+    desc: 'Add problems manually or let the upsolve engine recommend your next challenge automatically.',
+    accent: '#fbbf24',
+  },
+  {
+    num: '03',
+    title: 'Track & Improve',
+    desc: 'Mark problems solved, filter and compare, and systematically level up your rating.',
+    accent: '#34d399',
+  },
+];
+
+export default function Landing({ onNavigate, isVerified, stats = {} }) {
   const { onlineCount = 0, totalVisits = 0, registeredUsers = 0 } = stats;
 
-  const features = [
-    {
-      icon: '📋',
-      title: 'Problem Tracker',
-      description: 'Add Codeforces problems to your personal list. Track your progress, mark solved problems, and organize with custom tags.',
-      requiresVerification: true
-    },
-    {
-      icon: '🎯',
-      title: 'Smart Upsolving',
-      description: 'Get personalized recommendations for problems to upsolve from recent Div 1-4 contests. Focus on the next challenge after your last solved problem.',
-      requiresVerification: true
-    },
-    {
-      icon: '🔍',
-      title: 'User Comparison',
-      description: 'Compare any two Codeforces users. Find problems that one user has solved but the other hasn\'t. Great for learning from friends!',
-      requiresVerification: false
-    },
-    {
-      icon: '🏷️',
-      title: 'Tag & Filter',
-      description: 'Organize problems with custom tags, filter by rating range, and hide/show problem tags to avoid spoilers.',
-      requiresVerification: true
-    },
-    {
-      icon: '🌙',
-      title: 'Dark Mode',
-      description: 'Easy on the eyes with full dark mode support. Your preference is saved automatically.',
-      requiresVerification: false
-    },
-    {
-      icon: '✅',
-      title: 'CF Verification',
-      description: 'Verify your Codeforces handle ownership to ensure your data stays secure and private.',
-      requiresVerification: false
-    }
-  ];
-
   return (
-    <div className="space-y-12">
-      {/* Hero Section */}
-      <div className={`text-center py-12 px-6 rounded-2xl ${
-        darkMode
-          ? 'bg-gradient-to-br from-purple-900/50 to-indigo-900/50'
-          : 'bg-gradient-to-br from-purple-100 to-indigo-100'
-      }`}>
-        <h1 className={`text-5xl font-bold mb-4 ${
-          darkMode ? 'text-white' : 'text-purple-900'
-        }`}>
-          CF Upsolve Tracker
-        </h1>
-        <p className={`text-xl mb-8 max-w-2xl mx-auto ${
-          darkMode ? 'text-gray-300' : 'text-gray-700'
-        }`}>
-          Your personal companion for mastering Codeforces problems. 
-          Track progress, get smart recommendations, and level up your competitive programming skills.
-        </p>
-        
-        <div className="flex justify-center gap-4 flex-wrap">
-          {isVerified ? (
-            <>
+    <div className="space-y-20">
+
+      {/* ── Hero ─────────────────────────────────── */}
+      <div className="relative text-center py-20 px-6 rounded-3xl overflow-hidden border border-white/[0.06]"
+        style={{ background: 'linear-gradient(160deg, #0a0a0a 0%, #0d0b14 60%, #0a0f0a 100%)' }}>
+
+        {/* Orb */}
+        <div className="absolute inset-0 flex items-center justify-center opacity-50 pointer-events-auto">
+          <div className="w-[600px] h-[600px]">
+            <Orb hue={260} hoverIntensity={0.3} rotateOnHover backgroundColor="#000000" />
+          </div>
+        </div>
+
+        {/* Glow accents */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-32 bg-violet-600/10 blur-3xl rounded-full pointer-events-none" />
+        <div className="absolute bottom-0 left-1/4 w-64 h-24 bg-indigo-600/10 blur-3xl rounded-full pointer-events-none" />
+
+        <div className="relative z-10 pointer-events-none">
+          {/* Badge */}
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-violet-500/30 bg-violet-500/10 text-violet-300 text-xs font-medium mb-6">
+            <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />
+            Codeforces Productivity Suite
+          </div>
+
+          <h1 className="text-6xl md:text-7xl font-extrabold mb-5 leading-tight tracking-tight">
+            <span className="text-white">CF </span>
+            <span style={{ background: 'linear-gradient(135deg, #a78bfa, #818cf8, #60a5fa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              Upsolve
+            </span>
+          </h1>
+
+          <p className="text-lg md:text-xl text-gray-400 max-w-xl mx-auto mb-10 leading-relaxed">
+            Track problems, get smart contest recommendations, and systematically
+            climb the Codeforces ladder.
+          </p>
+
+          <div className="flex justify-center gap-3 flex-wrap pointer-events-auto">
+            {isVerified ? (
+              <>
+                <button
+                  onClick={() => onNavigate('problems')}
+                  className="group flex items-center gap-2 px-7 py-3 rounded-xl font-semibold text-sm text-white transition-all duration-200 hover:brightness-110 active:scale-95"
+                  style={{ background: 'linear-gradient(135deg, #7c3aed, #6d28d9)', boxShadow: '0 0 20px rgba(124,58,237,0.35)' }}
+                >
+                  My Problems
+                  <LuArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
+                </button>
+                <button
+                  onClick={() => onNavigate('upsolve')}
+                  className="group flex items-center gap-2 px-7 py-3 rounded-xl font-semibold text-sm text-white transition-all duration-200 hover:brightness-110 active:scale-95"
+                  style={{ background: 'linear-gradient(135deg, #1d4ed8, #1e40af)', boxShadow: '0 0 20px rgba(29,78,216,0.3)' }}
+                >
+                  Start Upsolving
+                  <LuArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
+                </button>
+              </>
+            ) : (
               <button
-                onClick={() => onNavigate('problems')}
-                className="px-8 py-3 bg-purple-600 text-white rounded-xl font-semibold text-lg hover:bg-purple-700 transition-colors shadow-lg hover:shadow-xl"
+                onClick={() => onNavigate('profile')}
+                className="group flex items-center gap-2 px-8 py-3.5 rounded-xl font-semibold text-sm text-white transition-all duration-200 hover:brightness-110 active:scale-95"
+                style={{ background: 'linear-gradient(135deg, #7c3aed, #6d28d9)', boxShadow: '0 0 24px rgba(124,58,237,0.4)' }}
               >
-                📋 My Problems
+                Get Started
+                <LuArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
               </button>
-              <button
-                onClick={() => onNavigate('upsolve')}
-                className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-semibold text-lg hover:bg-indigo-700 transition-colors shadow-lg hover:shadow-xl"
-              >
-                🎯 Start Upsolving
-              </button>
-            </>
-          ) : (
+            )}
             <button
-              onClick={() => onNavigate('profile')}
-              className="px-8 py-3 bg-purple-600 text-white rounded-xl font-semibold text-lg hover:bg-purple-700 transition-colors shadow-lg hover:shadow-xl"
+              onClick={() => onNavigate('compare')}
+              className="px-7 py-3 rounded-xl font-semibold text-sm text-gray-300 border border-white/10 bg-white/5 hover:bg-white/10 transition-all duration-200 active:scale-95"
             >
-              🚀 Get Started - Set Up Profile
+              Compare Users
             </button>
-          )}
-          <button
-            onClick={() => onNavigate('compare')}
-            className={`px-8 py-3 rounded-xl font-semibold text-lg transition-colors shadow-lg hover:shadow-xl ${
-              darkMode
-                ? 'bg-gray-700 text-white hover:bg-gray-600'
-                : 'bg-white text-purple-700 hover:bg-gray-50'
-            }`}
-          >
-            🔍 Compare Users
-          </button>
-        </div>
-
-        {/* Live Stats */}
-        <div className="flex justify-center gap-8 mt-8 flex-wrap">
-          <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
-            darkMode ? 'bg-white/10' : 'bg-white/60'
-          }`}>
-            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-            <span className={`font-semibold ${darkMode ? 'text-green-300' : 'text-green-700'}`}>
-              {onlineCount}
-            </span>
-            <span className={darkMode ? 'text-gray-300' : 'text-gray-600'}>online now</span>
-          </div>
-          <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
-            darkMode ? 'bg-white/10' : 'bg-white/60'
-          }`}>
-            <span className="text-lg">👥</span>
-            <span className={`font-semibold ${darkMode ? 'text-purple-300' : 'text-purple-700'}`}>
-              {registeredUsers.toLocaleString()}
-            </span>
-            <span className={darkMode ? 'text-gray-300' : 'text-gray-600'}>registered users</span>
-          </div>
-          <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
-            darkMode ? 'bg-white/10' : 'bg-white/60'
-          }`}>
-            <span className="text-lg">👀</span>
-            <span className={`font-semibold ${darkMode ? 'text-indigo-300' : 'text-indigo-700'}`}>
-              {totalVisits.toLocaleString()}
-            </span>
-            <span className={darkMode ? 'text-gray-300' : 'text-gray-600'}>total visits</span>
           </div>
         </div>
-      </div>
 
-      {/* Features Grid */}
-      <div>
-        <h2 className={`text-3xl font-bold text-center mb-8 ${
-          darkMode ? 'text-white' : 'text-gray-900'
-        }`}>
-          Features
-        </h2>
-        
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {features.map((feature, index) => (
-            <div
-              key={index}
-              className={`p-6 rounded-xl border transition-all hover:shadow-lg ${
-                darkMode
-                  ? 'bg-gray-800 border-gray-700 hover:border-purple-500'
-                  : 'bg-white border-gray-200 hover:border-purple-400'
-              }`}
-            >
-              <div className="text-4xl mb-4">{feature.icon}</div>
-              <h3 className={`text-xl font-bold mb-2 flex items-center gap-2 ${
-                darkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                {feature.title}
-                {feature.requiresVerification && (
-                  <span className={`text-xs px-2 py-1 rounded-full ${
-                    darkMode ? 'bg-purple-900 text-purple-300' : 'bg-purple-100 text-purple-700'
-                  }`}>
-                    Requires Verification
-                  </span>
-                )}
-              </h3>
-              <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
-                {feature.description}
-              </p>
+        {/* Live stats bar */}
+        <div className="relative z-10 mt-12 flex justify-center gap-6 flex-wrap pointer-events-auto">
+          {[
+            { dot: true, color: '#4ade80', value: onlineCount, label: 'online now' },
+            { emoji: '👥', value: registeredUsers.toLocaleString(), label: 'users' },
+            { emoji: '👀', value: totalVisits.toLocaleString(), label: 'visits' },
+          ].map((s, i) => (
+            <div key={i} className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/[0.07] bg-white/[0.04] text-sm">
+              {s.dot
+                ? <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: s.color }} />
+                : <span>{s.emoji}</span>}
+              <span className="font-semibold text-white">{s.value}</span>
+              <span className="text-gray-500">{s.label}</span>
             </div>
           ))}
         </div>
       </div>
 
-      {/* How It Works */}
-      <div className={`p-8 rounded-2xl ${
-        darkMode ? 'bg-gray-800' : 'bg-gray-50'
-      }`}>
-        <h2 className={`text-3xl font-bold text-center mb-8 ${
-          darkMode ? 'text-white' : 'text-gray-900'
-        }`}>
-          How It Works
-        </h2>
-        
-        <div className="grid md:grid-cols-3 gap-8">
-          <div className="text-center">
-            <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4 ${
-              darkMode ? 'bg-purple-600 text-white' : 'bg-purple-600 text-white'
-            }`}>
-              1
+      {/* ── Features ─────────────────────────────── */}
+      <div>
+        <div className="text-center mb-12">
+          <p className="text-xs font-bold uppercase tracking-widest text-gray-600 mb-3">What you get</p>
+          <h2 className="text-4xl font-bold text-white">Everything you need to improve</h2>
+        </div>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {features.map((f, i) => (
+            <div
+              key={i}
+              className="group relative p-6 rounded-2xl border transition-all duration-200 hover:scale-[1.02]"
+              style={{ background: f.bg, borderColor: f.border }}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 rounded-lg" style={{ background: `${f.accent}18`, color: f.accent }}>
+                  {f.icon}
+                </div>
+                <h3 className="text-base font-semibold text-white">{f.title}</h3>
+                {f.requiresVerification && (
+                  <span className="ml-auto text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-md"
+                    style={{ background: `${f.accent}15`, color: f.accent }}>
+                    verified
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-gray-500 leading-relaxed">{f.description}</p>
             </div>
-            <h3 className={`text-lg font-semibold mb-2 ${
-              darkMode ? 'text-white' : 'text-gray-900'
-            }`}>
-              Sign In & Verify
-            </h3>
-            <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
-              Sign in with Google and verify your CF handle by submitting a compilation error.
-            </p>
-          </div>
-          
-          <div className="text-center">
-            <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4 ${
-              darkMode ? 'bg-purple-600 text-white' : 'bg-purple-600 text-white'
-            }`}>
-              2
-            </div>
-            <h3 className={`text-lg font-semibold mb-2 ${
-              darkMode ? 'text-white' : 'text-gray-900'
-            }`}>
-              Add Problems
-            </h3>
-            <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
-              Add problems manually or get smart recommendations from recent contests.
-            </p>
-          </div>
-          
-          <div className="text-center">
-            <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4 ${
-              darkMode ? 'bg-purple-600 text-white' : 'bg-purple-600 text-white'
-            }`}>
-              3
-            </div>
-            <h3 className={`text-lg font-semibold mb-2 ${
-              darkMode ? 'text-white' : 'text-gray-900'
-            }`}>
-              Track & Improve
-            </h3>
-            <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
-              Solve problems, mark them complete, and watch your skills grow over time.
-            </p>
-          </div>
+          ))}
         </div>
       </div>
 
-      {/* Stats/Info */}
-      <div className="text-center">
-        <p className={`text-sm ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-          Built with ❤️ for competitive programmers • Data from Codeforces API
-        </p>
+      {/* ── How It Works ─────────────────────────── */}
+      <div className="relative p-10 rounded-3xl border border-white/[0.06]"
+        style={{ background: 'linear-gradient(135deg, #0a0a0a, #0d0b14)' }}>
+        <div className="text-center mb-12">
+          <p className="text-xs font-bold uppercase tracking-widest text-gray-600 mb-3">Simple process</p>
+          <h2 className="text-4xl font-bold text-white">Get up and running in minutes</h2>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-6 relative">
+          {/* Connector line */}
+          <div className="hidden md:block absolute top-8 left-[calc(33%+16px)] right-[calc(33%+16px)] h-px"
+            style={{ background: 'linear-gradient(90deg, #7c3aed44, #fbbf2444, #34d39944)' }} />
+
+          {steps.map((s, i) => (
+            <div key={i} className="relative text-center px-4">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-black mx-auto mb-5 border"
+                style={{ background: `${s.accent}12`, borderColor: `${s.accent}30`, color: s.accent }}>
+                {s.num}
+              </div>
+              <h3 className="text-lg font-semibold text-white mb-2">{s.title}</h3>
+              <p className="text-sm text-gray-500 leading-relaxed">{s.desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── CTA ──────────────────────────────────── */}
+      {!isVerified && (
+        <div className="relative text-center py-16 px-6 rounded-3xl overflow-hidden border border-violet-500/20"
+          style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.1), rgba(99,102,241,0.08), rgba(29,78,216,0.08))' }}>
+          <div className="absolute inset-0 bg-gradient-to-br from-violet-600/5 via-transparent to-indigo-600/5 pointer-events-none" />
+          <h2 className="text-3xl font-bold text-white mb-3 relative z-10">Ready to level up?</h2>
+          <p className="text-gray-400 mb-8 max-w-md mx-auto relative z-10 text-sm">
+            Set up your profile, verify your Codeforces handle, and start tracking in under 2 minutes.
+          </p>
+          <button
+            onClick={() => onNavigate('profile')}
+            className="relative z-10 group inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-semibold text-sm text-white transition-all duration-200 hover:brightness-110 active:scale-95"
+            style={{ background: 'linear-gradient(135deg, #7c3aed, #6d28d9)', boxShadow: '0 0 32px rgba(124,58,237,0.4)' }}
+          >
+            Set Up Profile
+            <LuArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
+          </button>
+        </div>
+      )}
+
+      <div className="text-center pb-4">
+        <p className="text-xs text-gray-700">Built for competitive programmers · Data from Codeforces API</p>
       </div>
     </div>
   );

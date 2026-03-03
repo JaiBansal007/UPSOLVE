@@ -1,130 +1,112 @@
-export default function ProblemCard({ problem, onDelete, onToggleSolved, hideTags, darkMode }) {
-  const getDifficultyColor = (rating) => {
-    if (!rating) return darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700';
-    if (rating < 1200) return darkMode ? 'bg-green-800 text-green-300' : 'bg-green-100 text-green-700';
-    if (rating < 1600) return darkMode ? 'bg-blue-800 text-blue-300' : 'bg-blue-100 text-blue-700';
-    if (rating < 2000) return darkMode ? 'bg-purple-800 text-purple-300' : 'bg-purple-100 text-purple-700';
-    if (rating < 2400) return darkMode ? 'bg-orange-800 text-orange-300' : 'bg-orange-100 text-orange-700';
-    return darkMode ? 'bg-red-800 text-red-300' : 'bg-red-100 text-red-700';
+export default function ProblemCard({ problem, onDelete, onToggleSolved, hideTags, isSelected }) {
+  const getRatingBg = (rating) => {
+    if (!rating) return 'bg-gray-800 text-gray-500 border border-gray-700';
+    if (rating < 1200) return 'bg-green-950 text-green-400 border border-green-800';
+    if (rating < 1600) return 'bg-cyan-950 text-cyan-400 border border-cyan-800';
+    if (rating < 2000) return 'bg-blue-950 text-blue-400 border border-blue-800';
+    if (rating < 2400) return 'bg-orange-950 text-orange-400 border border-orange-800';
+    return 'bg-red-950 text-red-400 border border-red-800';
   };
 
+  const isSolved = problem.solved || problem.solvedOnCF;
+
   return (
-    <div className={`group hover:shadow-md transition-all duration-200 p-3 border-l-4 ${
-      problem.solved || problem.solvedOnCF 
-        ? darkMode
-          ? 'border-l-green-500 bg-green-900/10 hover:bg-green-900/20'
-          : 'border-l-green-500 bg-green-50/30 hover:bg-green-50/60'
-        : darkMode
-          ? 'border-l-purple-500 bg-gray-800/50 hover:bg-gray-800'
-          : 'border-l-purple-500 bg-white hover:bg-purple-50/30'
+    <div className={`p-4 rounded-xl border transition-all duration-200 ${
+      isSelected
+        ? 'bg-[#1c1c1c] border-gray-600'
+        : isSolved
+          ? 'bg-[#0d160d] border-green-900/40'
+          : 'bg-[#111] border-gray-800'
     }`}>
-      <div className="flex items-center justify-between gap-4">
-        {/* Problem Info - Left Side */}
+      <div className="flex items-start justify-between gap-4">
+        {/* Left: Problem info */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3 mb-1">
-            <span className={`font-mono text-sm font-medium ${
-              darkMode ? 'text-gray-300' : 'text-gray-600'
-            }`}>
+          {/* Top row: ID + rating + solved badge */}
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
+            <span className="font-mono text-sm font-semibold text-gray-400 bg-black px-2 py-0.5 rounded border border-gray-800">
               {problem.contestId}{problem.index}
             </span>
-            
             {problem.rating && (
-              <span className={`px-2 py-0.5 rounded text-xs font-semibold ${getDifficultyColor(problem.rating)}`}>
-                {problem.rating}
+              <span className={`text-xs font-bold px-2 py-0.5 rounded ${getRatingBg(problem.rating)}`}>
+                ★ {problem.rating}
               </span>
             )}
-            
             {problem.solvedOnCF && (
-              <span className="bg-green-500 text-white px-1.5 py-0.5 rounded text-xs font-medium">
-                ✓ CF
+              <span className="bg-green-950 text-green-400 border border-green-800 px-2 py-0.5 rounded text-xs font-medium">
+                ✓ CF Solved
               </span>
             )}
             {problem.solved && !problem.solvedOnCF && (
-              <span className="bg-green-500 text-white text-xs px-1.5 py-0.5 rounded">
-                ✓ Local
+              <span className="bg-green-950/50 text-green-500 border border-green-900 px-2 py-0.5 rounded text-xs font-medium">
+                ✓ Solved
               </span>
             )}
           </div>
-          
-          <h3 className={`text-sm font-medium truncate mb-1 ${
-            darkMode ? 'text-gray-100' : 'text-gray-900'
+
+          {/* Problem name */}
+          <h3 className={`text-base font-semibold mb-2 leading-snug ${
+            isSolved ? 'text-gray-600 line-through decoration-gray-700' : 'text-gray-100'
           }`}>
             {problem.name}
           </h3>
-          
-          <div className="flex items-center gap-4 text-xs">
+
+          {/* Tags */}
+          {!hideTags && (problem.tags?.length > 0 || problem.myTags?.length > 0) && (
+            <div className="flex flex-wrap gap-1 mb-2">
+              {problem.tags?.slice(0, 4).map((tag, i) => (
+                <span key={i} className="px-1.5 py-0.5 rounded text-xs bg-black text-gray-600 border border-gray-800">
+                  {tag}
+                </span>
+              ))}
+              {problem.tags?.length > 4 && (
+                <span className="px-1.5 py-0.5 text-xs text-gray-700">
+                  +{problem.tags.length - 4} more
+                </span>
+              )}
+              {problem.myTags?.filter(t => t !== 'upsolve').map((tag, i) => (
+                <span key={i} className="px-1.5 py-0.5 rounded text-xs bg-indigo-950 text-indigo-400 border border-indigo-900">
+                  {tag}
+                </span>
+              ))}
+              {problem.myTags?.includes('upsolve') && (
+                <span className="px-1.5 py-0.5 rounded text-xs bg-purple-950 text-purple-400 border border-purple-900">
+                  upsolve
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Link + date */}
+          <div className="flex items-center gap-3 text-xs text-gray-500">
             <a
               href={problem.url}
               target="_blank"
               rel="noopener noreferrer"
-              className={`hover:underline ${
-                darkMode ? 'text-blue-400 hover:text-blue-300' : 'text-purple-600 hover:text-purple-700'
-              }`}
+              onClick={e => e.stopPropagation()}
+              className="hover:text-blue-400 transition-colors"
             >
-              View Problem →
+              codeforces.com ↗
             </a>
-            
-            {!hideTags && (problem.tags?.length > 0 || problem.myTags?.length > 0) && (
-              <div className="flex items-center gap-1 max-w-md">
-                {problem.tags?.slice(0, 3).map((tag, index) => (
-                  <span
-                    key={index}
-                    className={`px-1.5 py-0.5 rounded text-xs ${
-                      darkMode
-                        ? 'bg-purple-800/50 text-purple-300'
-                        : 'bg-purple-100 text-purple-700'
-                    }`}
-                  >
-                    {tag}
-                  </span>
-                ))}
-                {problem.tags?.length > 3 && (
-                  <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                    +{problem.tags.length - 3}
-                  </span>
-                )}
-                {problem.myTags?.length > 0 && (
-                  <span className={`px-1.5 py-0.5 rounded text-xs ${
-                    darkMode
-                      ? 'bg-indigo-800/50 text-indigo-300'
-                      : 'bg-indigo-100 text-indigo-700'
-                  }`}>
-                    📝 {problem.myTags.length}
-                  </span>
-                )}
-              </div>
-            )}
-            
-            {hideTags && (
-              <span className="text-xs text-yellow-600 bg-yellow-100 px-1.5 py-0.5 rounded">
-                🔒 Tags hidden
-              </span>
-            )}
+            <span>·</span>
+            <span>{new Date(problem.addedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
           </div>
         </div>
 
-        {/* Actions - Right Side */}
-        <div className="flex items-center gap-2">
-          <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-            {new Date(problem.addedAt).toLocaleDateString()}
-          </span>
-          
+        {/* Right: Actions */}
+        <div className="flex flex-col items-end gap-2 shrink-0">
           <button
-            onClick={() => onToggleSolved(problem.id)}
-            className={`px-2 py-1 rounded text-xs font-medium transition ${
-              problem.solved
-                ? darkMode
-                  ? 'bg-gray-600 hover:bg-gray-500 text-gray-200'
-                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                : 'bg-green-500 hover:bg-green-600 text-white'
+            onClick={(e) => { e.stopPropagation(); onToggleSolved(problem.id); }}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+              isSolved
+                ? 'bg-gray-900 hover:bg-gray-800 text-gray-500 border border-gray-800'
+                : 'bg-green-950 hover:bg-green-900 text-green-400 border border-green-800'
             }`}
           >
-            {problem.solved ? 'Unsolve' : 'Solve'}
+            {isSolved ? 'Unsolve' : '✓ Solve'}
           </button>
-          
           <button
-            onClick={() => onDelete(problem.id)}
-            className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs font-medium transition opacity-70 group-hover:opacity-100"
+            onClick={(e) => { e.stopPropagation(); onDelete(problem.id); }}
+            className="px-3 py-1.5 rounded-lg text-sm font-medium bg-transparent hover:bg-red-950 text-gray-600 hover:text-red-400 border border-transparent hover:border-red-900 transition-all"
           >
             Delete
           </button>

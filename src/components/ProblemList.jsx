@@ -1,5 +1,25 @@
 import ProblemCard from './ProblemCard';
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { motion, useInView } from 'motion/react';
+
+const AnimatedItem = ({ children, delay = 0, index, onMouseEnter, onClick }) => {
+  const ref = useRef(null);
+  const inView = useInView(ref, { amount: 0.3, triggerOnce: false });
+  return (
+    <motion.div
+      ref={ref}
+      data-index={index}
+      onMouseEnter={onMouseEnter}
+      onClick={onClick}
+      initial={{ scale: 0.96, opacity: 0 }}
+      animate={inView ? { scale: 1, opacity: 1 } : { scale: 0.96, opacity: 0 }}
+      transition={{ duration: 0.18, delay }}
+      className="mb-3 cursor-default"
+    >
+      {children}
+    </motion.div>
+  );
+};
 
 export default function ProblemList({ 
   problems, 
@@ -18,22 +38,20 @@ export default function ProblemList({
   onHideTagsChange,
   darkMode
 }) {
-  const [showFilters, setShowFilters] = useState(true);
+  const listRef = useRef(null);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [keyboardNav, setKeyboardNav] = useState(false);
+  const [topGradientOpacity, setTopGradientOpacity] = useState(0);
+  const [bottomGradientOpacity, setBottomGradientOpacity] = useState(1);
 
   const sortedProblems = [...problems].sort((a, b) => {
     switch (sortBy) {
-      case 'rating-asc':
-        return (a.rating || 0) - (b.rating || 0);
-      case 'rating-desc':
-        return (b.rating || 0) - (a.rating || 0);
-      case 'name':
-        return a.name.localeCompare(b.name);
-      case 'date-new':
-        return new Date(b.addedAt) - new Date(a.addedAt);
-      case 'date-old':
-        return new Date(a.addedAt) - new Date(b.addedAt);
-      default:
-        return 0;
+      case 'rating-asc': return (a.rating || 0) - (b.rating || 0);
+      case 'rating-desc': return (b.rating || 0) - (a.rating || 0);
+      case 'name': return a.name.localeCompare(b.name);
+      case 'date-new': return new Date(b.addedAt) - new Date(a.addedAt);
+      case 'date-old': return new Date(a.addedAt) - new Date(b.addedAt);
+      default: return 0;
     }
   });
 
@@ -47,231 +65,240 @@ export default function ProblemList({
     onShowSolvedChange('all');
   };
 
+  const handleItemMouseEnter = useCallback(index => {
+    setSelectedIndex(index);
+  }, []);
+
+  const handleScroll = useCallback(e => {
+    const { scrollTop, scrollHeight, clientHeight } = e.target;
+    setTopGradientOpacity(Math.min(scrollTop / 50, 1));
+    const bottomDistance = scrollHeight - (scrollTop + clientHeight);
+    setBottomGradientOpacity(scrollHeight <= clientHeight ? 0 : Math.min(bottomDistance / 50, 1));
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = e => {
+      if (e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey)) {
+        e.preventDefault();
+        setKeyboardNav(true);
+        setSelectedIndex(prev => Math.min(prev + 1, sortedProblems.length - 1));
+      } else if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) {
+        e.preventDefault();
+        setKeyboardNav(true);
+        setSelectedIndex(prev => Math.max(prev - 1, 0));
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [sortedProblems.length]);
+
+  useEffect(() => {
+    if (!keyboardNav || selectedIndex < 0 || !listRef.current) return;
+    const container = listRef.current;
+    const selectedItem = container.querySelector(`[data-index="${selectedIndex}"]`);
+    if (selectedItem) {
+      const extraMargin = 50;
+      const containerScrollTop = container.scrollTop;
+      const containerHeight = container.clientHeight;
+      const itemTop = selectedItem.offsetTop;
+      const itemBottom = itemTop + selectedItem.offsetHeight;
+      if (itemTop < containerScrollTop + extraMargin) {
+        container.scrollTo({ top: itemTop - extraMargin, behavior: 'smooth' });
+      } else if (itemBottom > containerScrollTop + containerHeight - extraMargin) {
+        container.scrollTo({ top: itemBottom - containerHeight + extraMargin, behavior: 'smooth' });
+      }
+    }
+    setKeyboardNav(false);
+  }, [selectedIndex, keyboardNav]);
+
+  const statsTotal = allProblems.length;
+  const statsSolved = allProblems.filter(p => p.solved || p.solvedOnCF).length;
+  const statsUnsolved = statsTotal - statsSolved;
+
   return (
-    <div>
-      {/* Header with Filters */}
-      <div className={`rounded-xl shadow-md border p-4 mb-6 transition-colors duration-200 ${
-        darkMode 
-          ? 'bg-gray-800 border-gray-700' 
-          : 'bg-white border-purple-100'
-      }`}>
-        {/* Top Row - Count and Sort */}
-        <div className={`flex justify-between items-center mb-4 pb-3 border-b ${
-          darkMode ? 'border-gray-700' : 'border-purple-100'
-        }`}>
-          <span className={`text-2xl font-bold ${
-            darkMode ? 'text-gray-100' : 'text-purple-800'
-          }`}>
-            📋 <span className={darkMode ? 'text-gray-300' : 'text-purple-600'}>({allProblems.length})</span>
+    <div className="space-y-4">
+      {/* Stats bar */}
+      <div className="flex items-center gap-4 px-1">
+        <span className="text-2xl font-bold text-gray-100">Problems</span>
+        <div className="flex items-center gap-3 ml-2">
+          <span className="text-sm text-gray-600 bg-black border border-gray-800 px-2.5 py-1 rounded-lg">
+            {statsTotal} total
           </span>
-          
-          <div className="flex items-center gap-2">
-            <label className={`text-sm font-medium ${
-              darkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Sort:</label>
+          <span className="text-sm text-green-500 bg-green-950 border border-green-900 px-2.5 py-1 rounded-lg">
+            {statsSolved} solved
+          </span>
+          <span className="text-sm text-gray-500 bg-black border border-gray-800 px-2.5 py-1 rounded-lg">
+            {statsUnsolved} pending
+          </span>
+        </div>
+      </div>
+
+      {/* Filters panel */}
+      <div className="rounded-xl border border-gray-800 bg-[#0a0a0a] p-4">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Filters</span>
+          <button onClick={clearFilters} className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
+            Clear all
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+          {/* Sort */}
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Sort by</label>
             <select
               value={sortBy}
               onChange={(e) => onSortChange(e.target.value)}
-              className={`px-3 py-2 border rounded-lg text-sm transition-colors ${
-                darkMode
-                  ? 'border-gray-600 bg-gray-700 text-white focus:ring-gray-500 focus:border-transparent'
-                  : 'border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-transparent'
-              }`}
+              className="w-full px-3 py-2 bg-black border border-gray-800 text-gray-200 rounded-lg text-sm focus:border-gray-600 focus:outline-none"
             >
               <option value="date-new">Newest First</option>
               <option value="date-old">Oldest First</option>
-              <option value="rating-asc">Rating: Low to High</option>
-              <option value="rating-desc">Rating: High to Low</option>
-              <option value="name">Name (A-Z)</option>
+              <option value="rating-asc">Rating ↑</option>
+              <option value="rating-desc">Rating ↓</option>
+              <option value="name">Name A–Z</option>
+            </select>
+          </div>
+
+          {/* Status */}
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Status</label>
+            <select
+              value={showSolved}
+              onChange={(e) => onShowSolvedChange(e.target.value)}
+              className="w-full px-3 py-2 bg-black border border-gray-800 text-gray-200 rounded-lg text-sm focus:border-gray-600 focus:outline-none"
+            >
+              <option value="all">All</option>
+              <option value="solved">Solved</option>
+              <option value="unsolved">Unsolved</option>
+            </select>
+          </div>
+
+          {/* Min Rating */}
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Min rating</label>
+            <select
+              value={selectedRatingRange.min}
+              onChange={(e) => onRatingRangeChange({ ...selectedRatingRange, min: parseInt(e.target.value) })}
+              className="w-full px-3 py-2 bg-black border border-gray-800 text-gray-200 rounded-lg text-sm focus:border-gray-600 focus:outline-none"
+            >
+              <option value={0}>Any</option>
+              {Array.from({ length: 28 }, (_, i) => 800 + i * 100).map(r => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Max Rating */}
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Max rating</label>
+            <select
+              value={selectedRatingRange.max}
+              onChange={(e) => onRatingRangeChange({ ...selectedRatingRange, max: parseInt(e.target.value) })}
+              className="w-full px-3 py-2 bg-black border border-gray-800 text-gray-200 rounded-lg text-sm focus:border-gray-600 focus:outline-none"
+            >
+              {Array.from({ length: 28 }, (_, i) => 800 + i * 100).map(r => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+              <option value={4000}>Any</option>
             </select>
           </div>
         </div>
 
-        {/* Filters Row */}
-        <div className="space-y-3">
-          <div className="flex justify-between items-center">
-            <span className={`text-sm font-bold ${
-              darkMode ? 'text-gray-200' : 'text-purple-800'
-            }`}>🔍 Filters</span>
-            <button
-              onClick={clearFilters}
-              className={`text-sm font-medium ${
-                darkMode ? 'text-gray-400 hover:text-gray-200' : 'text-purple-600 hover:text-purple-800'
-              }`}
-            >
-              Clear All
-            </button>
+        {/* Hide tags toggle */}
+        <label className="inline-flex items-center gap-2 cursor-pointer text-xs text-gray-500 hover:text-gray-300 transition-colors select-none">
+          <div
+            onClick={() => onHideTagsChange(!hideTags)}
+            className={`w-8 h-4 rounded-full transition-colors relative ${hideTags ? 'bg-purple-700' : 'bg-gray-800'}`}
+          >
+            <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${hideTags ? 'left-4' : 'left-0.5'}`} />
           </div>
+          Hide tags
+        </label>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            {/* Solved Status Filter */}
-            <div>
-              <label className={`block text-xs font-medium mb-1 ${
-                darkMode ? 'text-gray-400' : 'text-gray-700'
-              }`}>Status</label>
-              <select
-                value={showSolved}
-                onChange={(e) => onShowSolvedChange(e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg text-sm transition-colors ${
-                  darkMode
-                    ? 'border-gray-600 bg-gray-700 text-white focus:ring-gray-500'
-                    : 'border-gray-300 focus:ring-2 focus:ring-purple-500'
-                }`}
-              >
-                <option value="all">All Problems</option>
-                <option value="solved">Solved Only</option>
-                <option value="unsolved">Unsolved Only</option>
-              </select>
-            </div>
-
-            {/* Rating Min */}
-            <div>
-              <label className={`block text-xs font-medium mb-1 ${
-                darkMode ? 'text-gray-400' : 'text-gray-700'
-              }`}>Min Rating</label>
-              <input
-                type="number"
-                value={selectedRatingRange.min}
-                onChange={(e) => onRatingRangeChange({ ...selectedRatingRange, min: parseInt(e.target.value) || 0 })}
-                placeholder="Min"
-                className={`w-full px-3 py-2 border rounded-lg text-sm transition-colors ${
-                  darkMode
-                    ? 'border-gray-600 bg-gray-700 text-white focus:ring-gray-500'
-                    : 'border-gray-300 focus:ring-2 focus:ring-purple-500'
-                }`}
-              />
-            </div>
-
-            {/* Rating Max */}
-            <div>
-              <label className={`block text-xs font-medium mb-1 ${
-                darkMode ? 'text-gray-400' : 'text-gray-700'
-              }`}>Max Rating</label>
-              <input
-                type="number"
-                value={selectedRatingRange.max}
-                onChange={(e) => onRatingRangeChange({ ...selectedRatingRange, max: parseInt(e.target.value) || 4000 })}
-                placeholder="Max"
-                className={`w-full px-3 py-2 border rounded-lg text-sm transition-colors ${
-                  darkMode
-                    ? 'border-gray-600 bg-gray-700 text-white focus:ring-gray-500'
-                    : 'border-gray-300 focus:ring-2 focus:ring-purple-500'
-                }`}
-              />
-            </div>
-
-            {/* Hide Tags Toggle */}
-            <div>
-              <label className={`block text-xs font-medium mb-1 ${
-                darkMode ? 'text-gray-400' : 'text-gray-700'
-              }`}>Display</label>
-              <label className={`flex items-center gap-2 cursor-pointer h-10 px-3 py-2 border rounded-lg transition-colors ${
-                darkMode
-                  ? 'border-gray-600 hover:bg-gray-700'
-                  : 'border-gray-300 hover:bg-gray-50'
-              }`}>
-                <input
-                  type="checkbox"
-                  checked={hideTags}
-                  onChange={(e) => onHideTagsChange(e.target.checked)}
-                  className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                />
-                <span className={`text-sm ${
-                  darkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Hide Tags</span>
-              </label>
+        {/* Tag filter */}
+        {allTags.length > 0 && (
+          <div className="mt-3 pt-3 border-t border-gray-900">
+            <label className="block text-xs text-gray-600 mb-2">
+              Tags {selectedTags.length > 0 && <span className="text-purple-500">({selectedTags.length} selected)</span>}
+            </label>
+            <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
+              {allTags.map(tag => (
+                <button
+                  key={tag}
+                  onClick={() => {
+                    if (selectedTags.includes(tag)) {
+                      onTagsChange(selectedTags.filter(t => t !== tag));
+                    } else {
+                      onTagsChange([...selectedTags, tag]);
+                    }
+                  }}
+                  className={`px-2 py-0.5 rounded text-xs transition-all ${
+                    selectedTags.includes(tag)
+                      ? 'bg-purple-950 text-purple-400 border border-purple-800'
+                      : 'bg-black text-gray-600 border border-gray-800 hover:border-gray-600 hover:text-gray-400'
+                  }`}
+                >
+                  {tag}
+                </button>
+              ))}
             </div>
           </div>
-
-          {/* Tag Filter */}
-          {allTags.length > 0 && (
-            <div>
-              <label className={`block text-xs font-medium mb-1 ${
-                darkMode ? 'text-gray-400' : 'text-gray-700'
-              }`}>
-                Filter by Tags ({selectedTags.length} selected)
-              </label>
-              <div className={`flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-2 rounded-lg border ${
-                darkMode
-                  ? 'bg-gray-700 border-gray-600'
-                  : 'bg-gray-50 border-gray-200'
-              }`}>
-                {allTags.map(tag => (
-                  <button
-                    key={tag}
-                    onClick={() => {
-                      if (selectedTags.includes(tag)) {
-                        onTagsChange(selectedTags.filter(t => t !== tag));
-                      } else {
-                        onTagsChange([...selectedTags, tag]);
-                      }
-                    }}
-                    className={`px-2 py-1 rounded text-xs font-medium transition ${
-                      selectedTags.includes(tag)
-                        ? darkMode
-                          ? 'bg-gray-600 text-white'
-                          : 'bg-purple-600 text-white'
-                        : darkMode
-                          ? 'bg-gray-800 text-gray-300 hover:bg-gray-600 border border-gray-600'
-                          : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                    }`}
-                  >
-                    {tag}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
+      {/* Problems list */}
       {problems.length === 0 ? (
-        <div className={`border-2 border-dashed rounded-lg p-12 text-center ${
-          darkMode
-            ? 'border-gray-600 bg-gray-800/50'
-            : 'border-purple-300 bg-purple-50'
-        }`}>
-          <div className="text-6xl mb-4">📝</div>
-          <h3 className={`text-xl font-bold mb-2 ${
-            darkMode ? 'text-gray-200' : 'text-purple-800'
-          }`}>No problems yet</h3>
-          <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
-            Add your first problem to start tracking!
-          </p>
+        <div className="border border-dashed border-gray-800 rounded-xl p-12 text-center bg-black/30">
+          <div className="text-5xl mb-4 opacity-30">📝</div>
+          <h3 className="text-lg font-semibold text-gray-600 mb-1">No problems yet</h3>
+          <p className="text-sm text-gray-700">Add your first problem to start tracking</p>
         </div>
       ) : (
-        <div className="space-y-1">
-          {/* List Header */}
-          <div className={`px-3 py-2 border-b text-xs font-semibold ${
-            darkMode 
-              ? 'border-gray-700 text-gray-400 bg-gray-800/30' 
-              : 'border-gray-200 text-gray-600 bg-gray-50'
-          }`}>
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-16">
-                  <span>PROBLEM</span>
-                  <span>TAGS</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span>ADDED</span>
-                <span>ACTIONS</span>
-              </div>
-            </div>
+        <div className="relative">
+          {/* Showing count */}
+          <div className="flex items-center gap-2 mb-3 px-1">
+            <span className="text-xs text-gray-500">Showing {sortedProblems.length} of {allProblems.length}</span>
+            <span className="text-xs text-gray-600">· use ↑↓ to navigate</span>
           </div>
-          
-          {/* Problem Items */}
-          {sortedProblems.map(problem => (
-            <ProblemCard
-              key={problem.id}
-              problem={problem}
-              onDelete={onDelete}
-              onToggleSolved={onToggleSolved}
-              hideTags={hideTags}
-              darkMode={darkMode}
-            />
-          ))}
+
+          {/* Scrollable animated list */}
+          <div
+            ref={listRef}
+            className="max-h-[680px] overflow-y-auto pr-1
+              [&::-webkit-scrollbar]:w-[4px]
+              [&::-webkit-scrollbar-track]:bg-black
+              [&::-webkit-scrollbar-thumb]:bg-gray-800
+              [&::-webkit-scrollbar-thumb]:rounded-full"
+            onScroll={handleScroll}
+            style={{ scrollbarWidth: 'thin', scrollbarColor: '#1f2937 #000' }}
+          >
+            {sortedProblems.map((problem, index) => (
+              <AnimatedItem
+                key={problem.id}
+                index={index}
+                delay={0.05}
+                onMouseEnter={() => handleItemMouseEnter(index)}
+              >
+                <ProblemCard
+                  problem={problem}
+                  onDelete={onDelete}
+                  onToggleSolved={onToggleSolved}
+                  hideTags={hideTags}
+                  isSelected={selectedIndex === index}
+                />
+              </AnimatedItem>
+            ))}
+          </div>
+
+          {/* Scroll gradients */}
+          <div
+            className="absolute top-8 left-0 right-0 h-12 bg-gradient-to-b from-black to-transparent pointer-events-none transition-opacity duration-300"
+            style={{ opacity: topGradientOpacity }}
+          />
+          <div
+            className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-black to-transparent pointer-events-none transition-opacity duration-300"
+            style={{ opacity: bottomGradientOpacity }}
+          />
         </div>
       )}
     </div>

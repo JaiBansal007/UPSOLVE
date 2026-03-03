@@ -133,4 +133,83 @@ export const registerUser = async (cfHandle) => {
   }
 };
 
+// Bug Report System
+export const submitBugReport = async (userId, userEmail, cfHandle, reportText) => {
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+  const userReportsRef = ref(rtdb, `bugReportCounts/${userId}/${today}`);
+  
+  try {
+    // Check daily limit
+    const countSnapshot = await get(userReportsRef);
+    const currentCount = countSnapshot.exists() ? countSnapshot.val() : 0;
+    
+    if (currentCount >= 5) {
+      throw new Error('Daily report limit reached (5 reports per day)');
+    }
+    
+    // Submit the report
+    const reportId = Date.now().toString();
+    const reportRef = ref(rtdb, `bugReports/${reportId}`);
+    await set(reportRef, {
+      id: reportId,
+      userId: userId,
+      userEmail: userEmail,
+      cfHandle: cfHandle || 'Anonymous',
+      reportText: reportText,
+      createdAt: rtdbServerTimestamp(),
+      status: 'pending'
+    });
+    
+    // Increment daily count
+    await set(userReportsRef, currentCount + 1);
+    
+    return { success: true, reportId };
+  } catch (error) {
+    console.error('Error submitting bug report:', error);
+    throw error;
+  }
+};
+
+export const getBugReports = async () => {
+  const reportsRef = ref(rtdb, 'bugReports');
+  try {
+    const snapshot = await get(reportsRef);
+    if (snapshot.exists()) {
+      const reports = [];
+      snapshot.forEach((child) => {
+        reports.push(child.val());
+      });
+      // Sort by createdAt descending
+      return reports.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    }
+    return [];
+  } catch (error) {
+    console.error('Error fetching bug reports:', error);
+    return [];
+  }
+};
+
+export const deleteBugReport = async (reportId) => {
+  const reportRef = ref(rtdb, `bugReports/${reportId}`);
+  try {
+    await set(reportRef, null);
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting bug report:', error);
+    throw error;
+  }
+};
+
+export const getUserDailyReportCount = async (userId) => {
+  const today = new Date().toISOString().split('T')[0];
+  const userReportsRef = ref(rtdb, `bugReportCounts/${userId}/${today}`);
+  try {
+    const snapshot = await get(userReportsRef);
+    return snapshot.exists() ? snapshot.val() : 0;
+  } catch (error) {
+    console.error('Error getting report count:', error);
+    return 0;
+  }
+};
+
 export { rtdb, ref, onValue, get };

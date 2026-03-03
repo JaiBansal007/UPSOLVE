@@ -1,10 +1,6 @@
-export default function Navigation({ currentPage, onPageChange, darkMode, onThemeToggle, isVerified, onlineCount = 0, cfHandle }) {
+export default function Navigation({ currentPage, onPageChange, darkMode, isVerified, onlineCount = 0, cfHandle }) {
   return (
-    <nav className={`shadow-sm transition-colors duration-200 ${
-      darkMode 
-        ? 'bg-gray-800 border-gray-700' 
-        : 'bg-white border-gray-200'
-    } border-b`}>
+    <nav className="relative z-10 shadow-sm bg-gray-800 border-gray-700 border-b">
       <div className="max-w-7xl mx-auto px-6">
         <div className="flex items-center justify-between h-14">
           {/* Navigation Links */}
@@ -13,12 +9,8 @@ export default function Navigation({ currentPage, onPageChange, darkMode, onThem
               onClick={() => onPageChange('home')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 currentPage === 'home'
-                  ? darkMode
-                    ? 'bg-gray-700 text-white'
-                    : 'bg-purple-100 text-purple-800'
-                  : darkMode
-                    ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  ? 'bg-gray-700 text-white'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-700'
               }`}
             >
               🏠 Home
@@ -27,16 +19,10 @@ export default function Navigation({ currentPage, onPageChange, darkMode, onThem
               onClick={() => isVerified ? onPageChange('problems') : onPageChange('profile')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 currentPage === 'problems'
-                  ? darkMode
-                    ? 'bg-gray-700 text-white'
-                    : 'bg-purple-100 text-purple-800'
+                  ? 'bg-gray-700 text-white'
                   : !isVerified
-                    ? darkMode
-                      ? 'text-gray-500 cursor-not-allowed'
-                      : 'text-gray-400 cursor-not-allowed'
-                    : darkMode
-                      ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    ? 'text-gray-500 cursor-not-allowed'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-700'
               }`}
             >
               📋 Problems {!isVerified && <span className="ml-1 text-xs">🔒</span>}
@@ -45,12 +31,8 @@ export default function Navigation({ currentPage, onPageChange, darkMode, onThem
               onClick={() => onPageChange('compare')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 currentPage === 'compare'
-                  ? darkMode
-                    ? 'bg-gray-700 text-white'
-                    : 'bg-purple-100 text-purple-800'
-                  : darkMode
-                    ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  ? 'bg-gray-700 text-white'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-700'
               }`}
             >
               🔍 Compare
@@ -59,32 +41,22 @@ export default function Navigation({ currentPage, onPageChange, darkMode, onThem
               onClick={() => isVerified ? onPageChange('upsolve') : onPageChange('profile')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 currentPage === 'upsolve'
-                  ? darkMode
-                    ? 'bg-gray-700 text-white'
-                    : 'bg-purple-100 text-purple-800'
+                  ? 'bg-gray-700 text-white'
                   : !isVerified
-                    ? darkMode
-                      ? 'text-gray-500 cursor-not-allowed'
-                      : 'text-gray-400 cursor-not-allowed'
-                    : darkMode
-                      ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    ? 'text-gray-500 cursor-not-allowed'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-700'
               }`}
             >
               🎯 Upsolve {!isVerified && <span className="ml-1 text-xs">🔒</span>}
             </button>
           </div>
 
-          {/* Right Side: Online Count, Profile, Theme Toggle */}
+          {/* Right Side: Online Count, Profile */}
           <div className="flex items-center gap-3">
             {/* Online Count */}
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${
-              darkMode ? 'bg-gray-700' : 'bg-gray-100'
-            }`}>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-700">
               <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-              <span className={`text-sm font-medium ${
-                darkMode ? 'text-gray-300' : 'text-gray-600'
-              }`}>
+              <span className="text-sm font-medium text-gray-300">
                 {onlineCount} online
               </span>
             </div>
@@ -94,12 +66,8 @@ export default function Navigation({ currentPage, onPageChange, darkMode, onThem
               onClick={() => onPageChange('profile')}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors ${
                 currentPage === 'profile'
-                  ? darkMode
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-purple-600 text-white'
-                  : darkMode
-                    ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
               }`}
             >
               <span className="text-lg">👤</span>
@@ -107,19 +75,6 @@ export default function Navigation({ currentPage, onPageChange, darkMode, onThem
                 {isVerified && cfHandle ? cfHandle : 'Profile'}
               </span>
               {!isVerified && <span className="text-xs">⚠️</span>}
-            </button>
-
-            {/* Theme Toggle */}
-            <button
-              onClick={onThemeToggle}
-              className={`p-2 rounded-lg transition-colors ${
-                darkMode
-                  ? 'text-yellow-400 hover:bg-gray-700'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-              title={`Switch to ${darkMode ? 'light' : 'dark'} mode`}
-            >
-              {darkMode ? '☀️' : '🌙'}
             </button>
           </div>
         </div>

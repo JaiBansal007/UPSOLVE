@@ -3,13 +3,15 @@ import ProblemForm from './components/ProblemForm';
 import ProblemList from './components/ProblemList';
 import UserComparison from './components/UserComparison';
 import UpsolvingFeature from './components/UpsolvingFeature';
-import Navigation from './components/Navigation';
+import CardNav from './components/CardNav';
 import Profile from './components/Profile';
 import Landing from './components/Landing';
+import BugReport from './components/BugReport';
+import AdminReports from './components/AdminReports';
 import { AuthProvider } from './contexts/AuthContext';
 import { storage } from './services/firebaseStorage';
 import { codeforcesAPI } from './services/codeforcesApi';
-import { setupPresence, auth, registerUser } from './services/firebase';
+import { setupPresence, auth, registerUser, signOutUser } from './services/firebase';
 import { useOnlinePresence } from './hooks/useOnlinePresence';
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -28,14 +30,12 @@ function App() {
   const [cfHandle, setCfHandle] = useState('');
   const [loading, setLoading] = useState(false);
   const [cfApiStatus, setCfApiStatus] = useState('checking'); // checking, online, offline
-  const [currentPage, setCurrentPage] = useState('home'); // home, profile, problems, compare, upsolve
-  const [darkMode, setDarkMode] = useState(() => {
-    const saved = localStorage.getItem('darkMode');
-    return saved ? JSON.parse(saved) : false;
-  });
+  const [currentPage, setCurrentPage] = useState('home'); // home, profile, problems, compare, upsolve, admin
+  const darkMode = true; // Always dark mode
   const [isVerified, setIsVerified] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [authUser, setAuthUser] = useState(null);
+  const [showBugReport, setShowBugReport] = useState(false);
 
   // Online presence and stats hook
   const { onlineCount, onlineUsers, totalVisits, registeredUsers } = useOnlinePresence(cfHandle);
@@ -150,18 +150,20 @@ function App() {
     setFilteredProblems(filtered);
   }, [problems, selectedTags, selectedRatingRange, showSolved]);
 
-  // Theme management
+  // Set dark mode class on document
   useEffect(() => {
-    localStorage.setItem('darkMode', JSON.stringify(darkMode));
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [darkMode]);
+    document.documentElement.classList.add('dark');
+  }, []);
 
-  const toggleTheme = () => {
-    setDarkMode(!darkMode);
+  const handleSignOut = async () => {
+    try {
+      await signOutUser();
+      setIsVerified(false);
+      setCfHandle('');
+      setCurrentPage('home');
+    } catch (e) {
+      console.error('Sign out failed', e);
+    }
   };
 
   const handleProblemAdded = async (problemData) => {
@@ -251,126 +253,22 @@ function App() {
 
   return (
     <AuthProvider>
-      <ThemeContext.Provider value={{ darkMode, toggleTheme }}>
-      <div className={`min-h-screen transition-colors duration-200 ${
-        darkMode 
-          ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' 
-          : 'bg-gradient-to-br from-purple-50 via-purple-100 to-indigo-100'
-      }`}>
-        {/* Navigation */}
-        <Navigation 
-          currentPage={currentPage} 
-          onPageChange={setCurrentPage}
-          darkMode={darkMode}
-          onThemeToggle={toggleTheme}
+      <ThemeContext.Provider value={{ darkMode }}>
+      <div className="min-h-screen flex flex-col bg-black">
+        {/* CardNav Navigation */}
+        <CardNav 
+          onNavigate={setCurrentPage}
+          currentPage={currentPage}
           isVerified={isVerified}
-          onlineCount={onlineCount}
           cfHandle={cfHandle}
+          onlineCount={onlineCount}
+          onSignOut={handleSignOut}
+          isLoggedIn={!!(authUser && !authUser.isAnonymous)}
+          cfApiStatus={cfApiStatus}
         />
 
-        {/* Header */}
-        <header className={`shadow-lg transition-colors duration-200 ${
-          darkMode
-            ? 'bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 text-white'
-            : 'bg-gradient-to-r from-purple-700 via-purple-600 to-indigo-600 text-white'
-        }`}>
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            {/* Title and Stats */}
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-3xl font-bold">
-                  🎯 {
-                    currentPage === 'home' ? 'CF Upsolve Tracker' :
-                    currentPage === 'profile' ? 'Profile Setup' :
-                    currentPage === 'problems' ? 'My Problems' :
-                    currentPage === 'compare' ? 'User Comparison' :
-                    'Upsolving Feature'
-                  }
-                </h1>
-                {/* CF API Status Indicator */}
-                <div className="flex items-center gap-2 bg-white/10 backdrop-blur rounded-full px-3 py-1">
-                  <div className={`w-2 h-2 rounded-full ${
-                    cfApiStatus === 'online' ? 'bg-green-400 animate-pulse' :
-                    cfApiStatus === 'offline' ? 'bg-red-400' :
-                    'bg-yellow-400 animate-pulse'
-                  }`}></div>
-                  <span className="text-xs font-medium">
-                    {cfApiStatus === 'online' ? 'CF API Online' :
-                     cfApiStatus === 'offline' ? 'CF API Offline' :
-                     'Checking API...'}
-                  </span>
-                  {cfApiStatus === 'offline' && (
-                    <button
-                      onClick={checkCfApiStatus}
-                      className="text-xs underline hover:text-purple-200"
-                    >
-                      Retry
-                    </button>
-                  )}
-                </div>
-              </div>
-              <p className={`text-sm ${
-                darkMode ? 'text-gray-300' : 'text-purple-100'
-              }`}>
-                {
-                  currentPage === 'home'
-                    ? 'Your personal companion for mastering Codeforces'
-                    : currentPage === 'profile'
-                    ? 'Complete your profile to unlock all features'
-                    : currentPage === 'problems' 
-                    ? 'Track, organize, and conquer your problem-solving journey'
-                    : currentPage === 'compare'
-                    ? 'Compare users and discover new problems to solve'
-                    : 'Get personalized upsolving recommendations from recent contests'
-                }
-              </p>
-              
-              {/* CF Handle Display */}
-              {(currentPage === 'problems' || currentPage === 'upsolve') && isVerified && (
-                <div className="mt-2 inline-flex items-center gap-2 bg-white/20 backdrop-blur rounded-lg px-4 py-2">
-                  <span className="text-lg">👤</span>
-                  <span className="font-semibold">
-                    {cfHandle}
-                  </span>
-                  {currentPage === 'upsolve' && (
-                    <span className="bg-green-500 text-white px-2 py-1 rounded-full text-xs font-medium ml-2">
-                      ✓ Verified
-                    </span>
-                  )}
-                </div>
-              )}
-              
-              {/* Stats - only show on problems page */}
-              {currentPage === 'problems' && (
-                <div className="flex gap-4 mt-4">
-                  <div className="bg-white/10 backdrop-blur rounded-lg px-3 py-1.5">
-                    <div className="text-xl font-bold">{stats.total}</div>
-                    <div className={`text-xs ${
-                      darkMode ? 'text-gray-300' : 'text-purple-100'
-                    }`}>Total</div>
-                  </div>
-                  <div className="bg-white/10 backdrop-blur rounded-lg px-3 py-1.5">
-                    <div className="text-xl font-bold text-green-300">{stats.solved}</div>
-                    <div className={`text-xs ${
-                      darkMode ? 'text-gray-300' : 'text-purple-100'
-                    }`}>Solved</div>
-                  </div>
-                  <div className="bg-white/10 backdrop-blur rounded-lg px-3 py-1.5">
-                    <div className="text-xl font-bold text-yellow-300">{stats.unsolved}</div>
-                    <div className={`text-xs ${
-                      darkMode ? 'text-gray-300' : 'text-purple-100'
-                    }`}>Unsolved</div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-        </header>
-
-        {/* Main Content */}
-        <main className="max-w-7xl mx-auto px-6 py-8">
+        {/* Main Content - with top padding for floating nav */}
+        <main className="relative z-10 max-w-7xl mx-auto px-6 pt-24 pb-8 flex-grow w-full">
           {initialLoading ? (
             <div className={`flex flex-col items-center justify-center py-20 ${
               darkMode ? 'text-gray-300' : 'text-purple-700'
@@ -387,7 +285,6 @@ function App() {
             </div>
           ) : currentPage === 'home' ? (
             <Landing 
-              darkMode={darkMode}
               onNavigate={setCurrentPage}
               isVerified={isVerified}
               stats={{ onlineCount, totalVisits, registeredUsers }}
@@ -429,9 +326,18 @@ function App() {
               </div>
             ) : (
             <>
-              {/* Add Problem Form */}
-              <div className="mb-6">
+              {/* Add Problem Button - Opens Modal */}
+              <div className="mb-6 flex items-center justify-between">
                 <ProblemForm onProblemAdded={handleProblemAdded} loading={loading} darkMode={darkMode} isVerified={isVerified} />
+                
+                {/* Quick Stats */}
+                <div className={`flex items-center gap-4 text-sm ${
+                  darkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                  <span>{problems.length} total</span>
+                  <span className="text-green-500">{problems.filter(p => p.solved).length} solved</span>
+                  <span className="text-yellow-500">{problems.filter(p => !p.solved).length} unsolved</span>
+                </div>
               </div>
 
               {/* Problem List Section with Filters */}
@@ -457,6 +363,10 @@ function App() {
           ) : currentPage === 'compare' ? (
             <div className="mb-6">
               <UserComparison darkMode={darkMode} />
+            </div>
+          ) : currentPage === 'admin' && cfHandle === 'Jx07' ? (
+            <div className="mb-6">
+              <AdminReports darkMode={darkMode} />
             </div>
           ) : (
             <div className="mb-6">
@@ -494,27 +404,53 @@ function App() {
         </main>
 
         {/* Footer */}
-        <footer className={`mt-16 transition-colors duration-200 ${
-          darkMode
-            ? 'bg-gray-900 text-gray-400'
-            : 'bg-purple-900 text-purple-200'
-        }`}>
-          <div className="max-w-6xl mx-auto px-6 py-6 text-center">
-            <p className="text-sm">
-              Built with React + TailwindCSS • Data from{' '}
-              <a
-                href="https://codeforces.com/apiHelp"
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`underline hover:text-white ${
-                  darkMode ? 'text-gray-300' : 'text-purple-300'
-                }`}
-              >
-                Codeforces API
-              </a>
-            </p>
+        <footer className="relative z-10 mt-auto bg-black border-t border-gray-900">
+          <div className="max-w-6xl mx-auto px-6 py-6">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <p className="text-sm text-gray-400">
+                Built with React + TailwindCSS • Data from{' '}
+                <a
+                  href="https://codeforces.com/apiHelp"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-gray-300 underline hover:text-white"
+                >
+                  Codeforces API
+                </a>
+              </p>
+              
+              <div className="flex items-center gap-4">
+                {/* Admin link - only for Jx07 */}
+                {cfHandle === 'Jx07' && (
+                  <button
+                    onClick={() => setCurrentPage('admin')}
+                    className="text-sm text-gray-400 underline hover:text-white transition-colors"
+                  >
+                    🔧 Admin
+                  </button>
+                )}
+                
+                {/* Bug Report - only for logged in users */}
+                {authUser && !authUser.isAnonymous && (
+                  <button
+                    onClick={() => setShowBugReport(true)}
+                    className="text-sm flex items-center gap-1 px-3 py-1 rounded-lg bg-gray-900 hover:bg-gray-800 text-gray-300 transition-colors border border-gray-800"
+                  >
+                    🐛 Report Bug
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </footer>
+
+        {/* Bug Report Modal */}
+        <BugReport
+          darkMode={darkMode}
+          isOpen={showBugReport}
+          onClose={() => setShowBugReport(false)}
+          cfHandle={cfHandle}
+        />
       </div>
     </ThemeContext.Provider>
     </AuthProvider>
