@@ -242,10 +242,18 @@ class FirebaseStorageService {
     try {
       await this.initialize();
       
+      if (!this.settingsDocRef) {
+        console.warn('No settings doc ref - user may not be authenticated');
+        // Fall back to localStorage if not authenticated
+        localStorage.setItem('cf_settings', JSON.stringify(settings));
+        return;
+      }
+      
       await setDoc(this.settingsDocRef, settings, { merge: true });
     } catch (error) {
       console.error('Error saving settings to Firestore:', error);
-      throw error;
+      // Fall back to localStorage on error
+      localStorage.setItem('cf_settings', JSON.stringify(settings));
     }
   }
 
@@ -285,6 +293,76 @@ class FirebaseStorageService {
   async getHideTags() {
     const settings = await this.getSettings();
     return settings.hideTags || false;
+  }
+
+  /**
+   * Save CF handle verification to Firestore
+   * @param {string} cfHandle - Codeforces handle
+   * @returns {Promise<void>}
+   */
+  async saveVerification(cfHandle) {
+    try {
+      await this.initialize();
+      
+      if (!this.settingsDocRef) {
+        // Fall back to localStorage if not authenticated
+        localStorage.setItem(`cf_verified_${cfHandle}`, JSON.stringify({
+          verified: true,
+          timestamp: Date.now(),
+          handle: cfHandle
+        }));
+        return;
+      }
+      
+      await setDoc(this.settingsDocRef, {
+        verification: {
+          verified: true,
+          timestamp: Date.now(),
+          handle: cfHandle
+        }
+      }, { merge: true });
+      
+      // Also save to localStorage as backup
+      localStorage.setItem(`cf_verified_${cfHandle}`, JSON.stringify({
+        verified: true,
+        timestamp: Date.now(),
+        handle: cfHandle
+      }));
+    } catch (error) {
+      console.error('Error saving verification:', error);
+      // Fall back to localStorage
+      localStorage.setItem(`cf_verified_${cfHandle}`, JSON.stringify({
+        verified: true,
+        timestamp: Date.now(),
+        handle: cfHandle
+      }));
+    }
+  }
+
+  /**
+   * Get verification status from Firestore
+   * @param {string} cfHandle - Codeforces handle to check
+   * @returns {Promise<{verified: boolean, timestamp: number}|null>}
+   */
+  async getVerification(cfHandle) {
+    try {
+      await this.initialize();
+      
+      const settings = await this.getSettings();
+      
+      if (settings.verification && settings.verification.handle === cfHandle) {
+        // Check if verification is not expired (30 days)
+        const isExpired = Date.now() - settings.verification.timestamp > (30 * 24 * 60 * 60 * 1000);
+        if (!isExpired) {
+          return settings.verification;
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error getting verification:', error);
+      return null;
+    }
   }
 }
 

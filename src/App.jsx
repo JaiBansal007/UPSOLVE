@@ -33,6 +33,7 @@ function App() {
     return saved ? JSON.parse(saved) : false;
   });
   const [isVerified, setIsVerified] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   // Online presence and stats hook
   const { onlineCount, onlineUsers, totalVisits, registeredUsers } = useOnlinePresence(cfHandle);
@@ -40,19 +41,26 @@ function App() {
   // Load settings on mount
   useEffect(() => {
     const loadSettings = async () => {
+      setInitialLoading(true);
       try {
         const settings = await storage.getSettings();
         setHideTags(settings.hideTags || false);
         setCfHandle(settings.cfHandle || '');
         
-        // Check verification status
+        // Check verification status from Firestore first
         if (settings.cfHandle) {
-          const verificationData = localStorage.getItem(`cf_verified_${settings.cfHandle}`);
-          if (verificationData) {
-            const parsed = JSON.parse(verificationData);
-            // Verification expires after 30 days
-            const isExpired = Date.now() - parsed.timestamp > (30 * 24 * 60 * 60 * 1000);
-            setIsVerified(parsed.verified && !isExpired);
+          const firestoreVerification = await storage.getVerification(settings.cfHandle);
+          if (firestoreVerification && firestoreVerification.verified) {
+            setIsVerified(true);
+          } else {
+            // Fall back to localStorage check
+            const verificationData = localStorage.getItem(`cf_verified_${settings.cfHandle}`);
+            if (verificationData) {
+              const parsed = JSON.parse(verificationData);
+              // Verification expires after 30 days
+              const isExpired = Date.now() - parsed.timestamp > (30 * 24 * 60 * 60 * 1000);
+              setIsVerified(parsed.verified && !isExpired);
+            }
           }
         }
         
@@ -65,6 +73,8 @@ function App() {
         }
       } catch (error) {
         console.error('Error loading data:', error);
+      } finally {
+        setInitialLoading(false);
       }
     };
     loadSettings();
@@ -341,7 +351,18 @@ function App() {
 
         {/* Main Content */}
         <main className="max-w-7xl mx-auto px-6 py-8">
-          {currentPage === 'home' ? (
+          {initialLoading ? (
+            <div className={`flex flex-col items-center justify-center py-20 ${
+              darkMode ? 'text-gray-300' : 'text-purple-700'
+            }`}>
+              <div className={`animate-spin rounded-full h-12 w-12 border-4 mb-4 ${
+                darkMode 
+                  ? 'border-gray-600 border-t-purple-500' 
+                  : 'border-purple-200 border-t-purple-600'
+              }`}></div>
+              <p className="font-medium">Loading your data...</p>
+            </div>
+          ) : currentPage === 'home' ? (
             <Landing 
               darkMode={darkMode}
               onNavigate={setCurrentPage}

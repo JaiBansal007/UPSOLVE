@@ -30,8 +30,14 @@ export default function Profile({ darkMode, onProfileComplete, cfHandle, setCfHa
 
   const handleLogout = async () => {
     try {
+      // Only clear local verification state, NOT Firestore (so it persists for next login)
       await logout();
-      setSuccess('Signed out successfully');
+      setIsVerified(false);
+      setCfHandle('');
+      setNewHandle('');
+      setShowVerification(false);
+      setVerificationProblem(null);
+      setSuccess('Signed out successfully.');
     } catch (error) {
       setError('Failed to sign out. Please try again.');
     }
@@ -117,12 +123,8 @@ export default function Profile({ darkMode, onProfileComplete, cfHandle, setCfHa
       );
 
       if (verificationSubmission) {
-        // Verification successful!
-        localStorage.setItem(`cf_verified_${cfHandle}`, JSON.stringify({
-          verified: true,
-          timestamp: Date.now(),
-          handle: cfHandle
-        }));
+        // Verification successful - save to Firestore
+        await storage.saveVerification(cfHandle);
         setIsVerified(true);
         setShowVerification(false);
         setSuccess('🎉 Handle verified successfully! You now have full access.');

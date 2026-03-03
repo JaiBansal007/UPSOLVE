@@ -8,10 +8,13 @@ export default function UserComparison({ darkMode }) {
   const [results, setResults] = useState(null);
   const [error, setError] = useState('');
   const [addingProblems, setAddingProblems] = useState(new Set());
-  const [currentPage, setCurrentPage] = useState(1);
-  const [ratingFilter, setRatingFilter] = useState({ min: 0, max: 4000 });
-  const [filteredResults, setFilteredResults] = useState(null);
-  const PROBLEMS_PER_PAGE = 30;
+  const [ratingFilter, setRatingFilter] = useState({ min: 800, max: 4000 });
+  const [groupedProblems, setGroupedProblems] = useState({});
+  const [expandedRatings, setExpandedRatings] = useState(new Set());
+  const [sortOrder, setSortOrder] = useState('asc'); // 'asc' for low-to-high, 'desc' for high-to-low
+  
+  // All valid ratings (multiples of 100, >= 800)
+  const ALL_RATINGS = Array.from({ length: 28 }, (_, i) => 800 + i * 100); // 800 to 3500
 
   const handleCompare = async () => {
     if (!user1Handle.trim() || !user2Handle.trim()) {
@@ -81,7 +84,7 @@ export default function UserComparison({ darkMode }) {
         allProblemsCount: problemsWithDetails.length
       });
 
-      setCurrentPage(1); // Reset to first page when new results come
+      setExpandedRatings(new Set()); // Reset expanded ratings when new results come
 
     } catch (error) {
       console.error('Error comparing users:', error);
@@ -103,8 +106,8 @@ export default function UserComparison({ darkMode }) {
     return 'text-red-600';
   };
 
-  // Filter and paginate results
-  const applyFilters = () => {
+  // Group problems by rating
+  const groupProblemsByRating = () => {
     if (!results) return;
 
     const filtered = results.recommendedProblems.filter(problem => {
@@ -112,36 +115,72 @@ export default function UserComparison({ darkMode }) {
       return rating >= ratingFilter.min && rating <= ratingFilter.max;
     });
 
-    setFilteredResults({
-      ...results,
-      recommendedProblems: filtered,
-      filteredCount: filtered.length
+    // Group by rating
+    const grouped = {};
+    filtered.forEach(problem => {
+      const rating = problem.rating || 0;
+      // Round to nearest 100 for grouping (problems without rating go to 800)
+      const ratingKey = rating >= 800 ? Math.floor(rating / 100) * 100 : 800;
+      if (!grouped[ratingKey]) {
+        grouped[ratingKey] = [];
+      }
+      grouped[ratingKey].push(problem);
+    });
+
+    // Sort problems within each group by contest ID
+    Object.keys(grouped).forEach(rating => {
+      grouped[rating].sort((a, b) => b.contestId - a.contestId);
+    });
+
+    setGroupedProblems(grouped);
+  };
+
+  // Apply grouping whenever results or rating filter changes
+  useEffect(() => {
+    groupProblemsByRating();
+  }, [results, ratingFilter]);
+
+  // Get sorted rating keys based on sort order
+  const getSortedRatings = () => {
+    const ratings = Object.keys(groupedProblems).map(Number).filter(r => r >= 800);
+    if (sortOrder === 'asc') {
+      return ratings.sort((a, b) => a - b);
+    } else {
+      return ratings.sort((a, b) => b - a);
+    }
+  };
+
+  // Toggle rating dropdown
+  const toggleRating = (rating) => {
+    setExpandedRatings(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(rating)) {
+        newSet.delete(rating);
+      } else {
+        newSet.add(rating);
+      }
+      return newSet;
     });
   };
 
-  // Apply filters whenever results or rating filter changes
-  useEffect(() => {
-    applyFilters();
-  }, [results, ratingFilter]);
-
-  // Get current page problems
-  const getCurrentPageProblems = () => {
-    if (!filteredResults) return [];
-    
-    const startIndex = (currentPage - 1) * PROBLEMS_PER_PAGE;
-    const endIndex = startIndex + PROBLEMS_PER_PAGE;
-    return filteredResults.recommendedProblems.slice(startIndex, endIndex);
+  // Expand/collapse all
+  const expandAll = () => {
+    setExpandedRatings(new Set(Object.keys(groupedProblems).map(Number)));
   };
 
-  const totalPages = filteredResults 
-    ? Math.ceil(filteredResults.recommendedProblems.length / PROBLEMS_PER_PAGE) 
-    : 0;
+  const collapseAll = () => {
+    setExpandedRatings(new Set());
+  };
 
-  const currentPageProblems = getCurrentPageProblems();
+  // Get total problem count
+  const getTotalProblemsCount = () => {
+    return Object.values(groupedProblems).reduce((sum, problems) => sum + problems.length, 0);
+  };
 
   const resetFilters = () => {
-    setRatingFilter({ min: 0, max: 4000 });
-    setCurrentPage(1);
+    setRatingFilter({ min: 800, max: 4000 });
+    setSortOrder('asc');
+    setExpandedRatings(new Set());
   };
 
   return (
@@ -163,8 +202,8 @@ export default function UserComparison({ darkMode }) {
       </p>
 
       {/* Input Form */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div>
+      <div className="flex flex-col md:flex-row gap-4 mb-6 items-end">
+        <div className="flex-1">
           <label className={`block text-sm font-semibold mb-2 ${
             darkMode ? 'text-gray-300' : 'text-gray-700'
           }`}>
@@ -184,7 +223,25 @@ export default function UserComparison({ darkMode }) {
           />
         </div>
         
-        <div>
+        {/* Swap Button */}
+        <button
+          onClick={() => {
+            const temp = user1Handle;
+            setUser1Handle(user2Handle);
+            setUser2Handle(temp);
+          }}
+          disabled={loading}
+          title="Swap usernames"
+          className={`px-3 py-2 rounded-lg transition-colors text-xl ${
+            darkMode
+              ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+              : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+          }`}
+        >
+          ⇄
+        </button>
+        
+        <div className="flex-1">
           <label className={`block text-sm font-semibold mb-2 ${
             darkMode ? 'text-gray-300' : 'text-gray-700'
           }`}>
@@ -204,19 +261,18 @@ export default function UserComparison({ darkMode }) {
           />
         </div>
         
-        <div className="flex items-end">
-          <button
-            onClick={handleCompare}
-            disabled={loading}
-            className={`w-full px-6 py-2 rounded-lg font-medium transition-colors ${
-              darkMode
-                ? 'bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 text-white'
-                : 'bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white'
-            }`}
-          >
-            {loading ? 'Comparing...' : 'Compare Users'}
-          </button>
-        </div>
+        {/* Compare Button */}
+        <button
+          onClick={handleCompare}
+          disabled={loading}
+          className={`px-6 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
+            darkMode
+              ? 'bg-purple-600 hover:bg-purple-500 disabled:bg-gray-700 text-white'
+              : 'bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white'
+          }`}
+        >
+          {loading ? 'Comparing...' : 'Compare'}
+        </button>
       </div>
 
       {/* Error Message */}
@@ -289,7 +345,7 @@ export default function UserComparison({ darkMode }) {
                   darkMode ? 'text-yellow-400' : 'text-yellow-700'
                 }`}>After Filters</div>
                 <div className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
-                  {filteredResults?.filteredCount || 0} problems
+                  {getTotalProblemsCount()} problems
                 </div>
               </div>
             </div>
@@ -316,51 +372,88 @@ export default function UserComparison({ darkMode }) {
                 </button>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className={`block text-sm font-medium mb-2 ${
                     darkMode ? 'text-gray-400' : 'text-gray-700'
                   }`}>Min Rating</label>
-                  <input
-                    type="number"
+                  <select
                     value={ratingFilter.min}
                     onChange={(e) => {
-                      setRatingFilter(prev => ({ ...prev, min: parseInt(e.target.value) || 0 }));
-                      setCurrentPage(1);
+                      setRatingFilter(prev => ({ ...prev, min: parseInt(e.target.value) || 800 }));
                     }}
-                    placeholder="0"
                     className={`w-full px-3 py-2 border rounded-lg text-sm transition-colors ${
                       darkMode
                         ? 'border-gray-600 bg-gray-700 text-white focus:ring-gray-500'
                         : 'border-gray-300 focus:ring-2 focus:ring-purple-500'
                     }`}
-                  />
+                  >
+                    {ALL_RATINGS.map(r => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className={`block text-sm font-medium mb-2 ${
                     darkMode ? 'text-gray-400' : 'text-gray-700'
                   }`}>Max Rating</label>
-                  <input
-                    type="number"
+                  <select
                     value={ratingFilter.max}
                     onChange={(e) => {
-                      setRatingFilter(prev => ({ ...prev, max: parseInt(e.target.value) || 4000 }));
-                      setCurrentPage(1);
+                      setRatingFilter(prev => ({ ...prev, max: parseInt(e.target.value) || 3500 }));
                     }}
-                    placeholder="4000"
                     className={`w-full px-3 py-2 border rounded-lg text-sm transition-colors ${
                       darkMode
                         ? 'border-gray-600 bg-gray-700 text-white focus:ring-gray-500'
                         : 'border-gray-300 focus:ring-2 focus:ring-purple-500'
                     }`}
-                  />
+                  >
+                    {ALL_RATINGS.map(r => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${
+                    darkMode ? 'text-gray-400' : 'text-gray-700'
+                  }`}>Sort by Rating</label>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setSortOrder('asc')}
+                      className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        sortOrder === 'asc'
+                          ? darkMode
+                            ? 'bg-purple-600 text-white'
+                            : 'bg-purple-600 text-white'
+                          : darkMode
+                            ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
+                    >
+                      ↑ Low to High
+                    </button>
+                    <button
+                      onClick={() => setSortOrder('desc')}
+                      className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        sortOrder === 'desc'
+                          ? darkMode
+                            ? 'bg-purple-600 text-white'
+                            : 'bg-purple-600 text-white'
+                          : darkMode
+                            ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
+                    >
+                      ↓ High to Low
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Recommended Problems */}
-          {filteredResults && filteredResults.recommendedProblems.length > 0 ? (
+          {/* Recommended Problems - Grouped by Rating */}
+          {getTotalProblemsCount() > 0 ? (
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h3 className={`font-bold ${
@@ -369,141 +462,130 @@ export default function UserComparison({ darkMode }) {
                   Problems solved by {results.user2} but not by {results.user1}:
                 </h3>
                 
-                {/* Page Info */}
-                <div className={`text-sm ${
-                  darkMode ? 'text-gray-400' : 'text-gray-600'
-                }`}>
-                  Showing {((currentPage - 1) * PROBLEMS_PER_PAGE) + 1}-{Math.min(
-                    currentPage * PROBLEMS_PER_PAGE,
-                    filteredResults.recommendedProblems.length
-                  )} of {filteredResults.recommendedProblems.length}
+                {/* Expand/Collapse Controls */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={expandAll}
+                    className={`px-3 py-1 text-sm font-medium rounded transition-colors ${
+                      darkMode
+                        ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    Expand All
+                  </button>
+                  <button
+                    onClick={collapseAll}
+                    className={`px-3 py-1 text-sm font-medium rounded transition-colors ${
+                      darkMode
+                        ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    Collapse All
+                  </button>
                 </div>
               </div>
               
-              <div className="space-y-3 mb-6">
-                {currentPageProblems.map((problem, index) => (
+              {/* Rating Groups */}
+              <div className="space-y-2">
+                {getSortedRatings().map(rating => (
                   <div
-                    key={problem.id}
-                    className={`border rounded-lg p-4 hover:shadow-md transition-shadow ${
-                      darkMode
-                        ? 'bg-gray-800 border-gray-600 hover:bg-gray-700'
-                        : 'bg-white border-gray-200'
+                    key={rating}
+                    className={`border rounded-lg overflow-hidden ${
+                      darkMode ? 'border-gray-600' : 'border-gray-200'
                     }`}
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <a
-                            href={codeforcesAPI.getProblemUrl(problem.contestId, problem.index)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={`font-semibold hover:underline ${
-                              darkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-800'
+                    {/* Rating Header - Clickable Dropdown */}
+                    <button
+                      onClick={() => toggleRating(rating)}
+                      className={`w-full px-4 py-3 flex items-center justify-between transition-colors ${
+                        darkMode
+                          ? 'bg-gray-800 hover:bg-gray-700'
+                          : 'bg-gray-50 hover:bg-gray-100'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className={`text-lg font-bold ${getRatingColor(rating)}`}>
+                          {rating}
+                        </span>
+                        <span className={`text-sm ${
+                          darkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
+                          ({groupedProblems[rating]?.length || 0} problems)
+                        </span>
+                      </div>
+                      <span className={`text-lg transition-transform duration-200 ${
+                        expandedRatings.has(rating) ? 'rotate-180' : ''
+                      } ${
+                        darkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
+                        ▼
+                      </span>
+                    </button>
+                    
+                    {/* Problems List - Expandable */}
+                    {expandedRatings.has(rating) && groupedProblems[rating] && (
+                      <div className={`border-t ${
+                        darkMode ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'
+                      }`}>
+                        {groupedProblems[rating].map((problem, index) => (
+                          <div
+                            key={problem.id}
+                            className={`px-4 py-2 flex items-center justify-between ${
+                              index !== groupedProblems[rating].length - 1 
+                                ? darkMode ? 'border-b border-gray-800' : 'border-b border-gray-100'
+                                : ''
+                            } ${
+                              darkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50'
                             }`}
                           >
-                            {problem.contestId}{problem.index}. {problem.name}
-                          </a>
-                          {problem.rating && (
-                            <span className={`px-2 py-1 text-xs font-bold rounded ${getRatingColor(problem.rating)} bg-opacity-10`}>
-                              {problem.rating}
-                            </span>
-                          )}
-                        </div>
-                        {problem.tags && problem.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {problem.tags.slice(0, 5).map((tag, tagIndex) => (
-                              <span
-                                key={tagIndex}
-                                className={`px-2 py-1 text-xs rounded ${
-                                  darkMode
-                                    ? 'bg-gray-700 text-gray-300'
-                                    : 'bg-gray-100 text-gray-700'
+                            <div className="flex-1">
+                              <a
+                                href={codeforcesAPI.getProblemUrl(problem.contestId, problem.index)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`font-medium hover:underline ${
+                                  darkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-800'
                                 }`}
                               >
-                                {tag}
-                              </span>
-                            ))}
-                            {problem.tags.length > 5 && (
-                              <span className={`px-2 py-1 text-xs rounded ${
-                                darkMode
-                                  ? 'bg-gray-700 text-gray-400'
-                                  : 'bg-gray-100 text-gray-500'
-                              }`}>
-                                +{problem.tags.length - 5} more
-                              </span>
-                            )}
+                                {problem.contestId}{problem.index}. {problem.name}
+                              </a>
+                              {problem.tags && problem.tags.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {problem.tags.slice(0, 3).map((tag, tagIndex) => (
+                                    <span
+                                      key={tagIndex}
+                                      className={`px-2 py-0.5 text-xs rounded ${
+                                        darkMode
+                                          ? 'bg-gray-700 text-gray-400'
+                                          : 'bg-gray-100 text-gray-600'
+                                      }`}
+                                    >
+                                      {tag}
+                                    </span>
+                                  ))}
+                                  {problem.tags.length > 3 && (
+                                    <span className={`px-2 py-0.5 text-xs rounded ${
+                                      darkMode
+                                        ? 'bg-gray-700 text-gray-500'
+                                        : 'bg-gray-100 text-gray-500'
+                                    }`}>
+                                      +{problem.tags.length - 3}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        )}
+                        ))}
                       </div>
-                    </div>
+                    )}
                   </div>
                 ))}
               </div>
-              
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-2 mt-6">
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    disabled={currentPage === 1}
-                    className={`px-3 py-2 rounded-lg font-medium transition-colors ${
-                      darkMode
-                        ? 'bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-600 text-white'
-                        : 'bg-gray-200 hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400 text-gray-700'
-                    }`}
-                  >
-                    ← Previous
-                  </button>
-                  
-                  <div className="flex gap-1">
-                    {/* Show page numbers */}
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      let pageNum;
-                      if (totalPages <= 5) {
-                        pageNum = i + 1;
-                      } else if (currentPage <= 3) {
-                        pageNum = i + 1;
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNum = totalPages - 4 + i;
-                      } else {
-                        pageNum = currentPage - 2 + i;
-                      }
-                      
-                      return (
-                        <button
-                          key={pageNum}
-                          onClick={() => setCurrentPage(pageNum)}
-                          className={`px-3 py-2 rounded-lg font-medium transition-colors ${
-                            currentPage === pageNum
-                              ? darkMode
-                                ? 'bg-gray-600 text-white'
-                                : 'bg-purple-600 text-white'
-                              : darkMode
-                                ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                                : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                          }`}
-                        >
-                          {pageNum}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                    disabled={currentPage === totalPages}
-                    className={`px-3 py-2 rounded-lg font-medium transition-colors ${
-                      darkMode
-                        ? 'bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-600 text-white'
-                        : 'bg-gray-200 hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400 text-gray-700'
-                    }`}
-                  >
-                    Next →
-                  </button>
-                </div>
-              )}
             </div>
-          ) : filteredResults && filteredResults.recommendedProblems.length === 0 ? (
+          ) : Object.keys(groupedProblems).length === 0 && results ? (
             <div className={`text-center py-8 rounded-lg ${
               darkMode ? 'bg-gray-800' : 'bg-gray-50'
             }`}>
