@@ -43,17 +43,53 @@ class CodeforcesAPI {
   }
 
   /**
+   * Find a specific problem by contest ID and index using contest standings API
+   * Useful for recent contests not yet in the global problemset
+   * @param {number|string} contestId - Contest ID
+   * @param {string} index - Problem index (A, B, C, etc.)
+   * @returns {Promise<Object|null>} Problem object or null if not found
+   */
+  async findProblemFromContest(contestId, index) {
+    try {
+      const response = await fetch(
+        `${CF_API_BASE}/contest.standings?contestId=${contestId}&from=1&count=1&showUnofficial=false`
+      );
+      if (!response.ok) return null;
+      const data = await response.json();
+      if (data.status !== 'OK') return null;
+      const problem = data.result.problems.find(
+        p => p.index === index.toUpperCase()
+      );
+      if (!problem) return null;
+      // Normalize: ensure contestId is set
+      return { ...problem, contestId: parseInt(contestId) };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Find a specific problem by contest ID and index
    * @param {number|string} contestId - Contest ID
    * @param {string} index - Problem index (A, B, C, etc.)
    * @returns {Promise<Object|null>} Problem object or null if not found
    */
   async findProblem(contestId, index) {
-    const problems = await this.fetchAllProblems();
-    const problem = problems.find(
-      p => p.contestId === parseInt(contestId) && p.index === index.toUpperCase()
-    );
-    return problem || null;
+    try {
+      const problems = await this.fetchAllProblems();
+      const problem = problems.find(
+        p => p.contestId === parseInt(contestId) && p.index === index.toUpperCase()
+      );
+      if (problem) return problem;
+    } catch {
+      // fetchAllProblems failed (CORS, rate-limit, timeout, etc.)
+      // fall through to the contest-specific API below
+    }
+
+    // Fallback: fetch directly from the contest standings API.
+    // Works for recent contests not yet in the global problemset,
+    // and also when the global problemset API itself fails.
+    return this.findProblemFromContest(contestId, index);
   }
 
   /**
