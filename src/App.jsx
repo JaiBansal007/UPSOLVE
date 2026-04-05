@@ -169,6 +169,56 @@ function App() {
     document.documentElement.classList.add('dark');
   }, []);
 
+  // Handle Chrome Extension Deep Linking (?add=CF_URL)
+  useEffect(() => {
+    const handleDeepLink = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const addUrl = params.get('add');
+      
+      if (addUrl && cfHandle && isVerified && !initialLoading) {
+        // Clear the URL parameter immediately so it doesn't infinite loop on re-renders
+        window.history.replaceState(null, '', window.location.pathname);
+        
+        try {
+          // Parse the URL
+          const parsed = codeforcesAPI.parseProblemInput(decodeURIComponent(addUrl));
+          if (!parsed) {
+            alert("CF-Upsolve Companion Error: Could not parse the Codeforces URL.");
+            return;
+          }
+          
+          // Give visual UI context
+          setCurrentPage('problems');
+          
+          // Fetch full problem details via Codeforces API to get the name and standard tags
+          const problemData = await codeforcesAPI.findProblem(parsed.contestId, parsed.index);
+          
+          if (problemData) {
+            // Replicate exactly what ProblemForm does on submission
+            const fullProblemData = {
+              ...problemData,
+              myTags: ['upsolve'],
+              addedAt: Date.now(),
+              solved: false,
+              url: codeforcesAPI.getProblemUrl(parsed.contestId, parsed.index),
+              id: `${parsed.contestId}${parsed.index}`
+            };
+            
+            await handleProblemAdded(fullProblemData);
+          } else {
+            alert("CF-Upsolve: Could not fetch problem from Codeforces. API might be rate-limited.");
+          }
+        } catch (error) {
+          console.error("Deep link error:", error);
+          alert("CF-Upsolve Companion Error: " + error.message);
+        }
+      }
+    };
+
+    handleDeepLink();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cfHandle, isVerified, initialLoading]);
+
   const handleSignOut = async () => {
     try {
       await signOutUser();
