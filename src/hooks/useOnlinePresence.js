@@ -18,18 +18,25 @@ export function useOnlinePresence(cfHandle) {
 
   // Setup presence when user is authenticated (track all visitors)
   useEffect(() => {
+    let unmountPresence = null;
     const initPresence = async () => {
       try {
         // Wait for auth to be ready
         await authPromise;
         if (auth.currentUser) {
-          setupPresence(auth.currentUser.uid, cfHandle || null);
+          unmountPresence = setupPresence(auth.currentUser.uid, cfHandle || null);
         }
       } catch (error) {
         console.error('Error setting up presence:', error);
       }
     };
     initPresence();
+    
+    return () => {
+      if (typeof unmountPresence === 'function') {
+        unmountPresence();
+      }
+    };
   }, [cfHandle]);
 
   // Listen to online users
@@ -46,7 +53,20 @@ export function useOnlinePresence(cfHandle) {
             cfHandle: user.cfHandle,
             lastSeen: user.lastSeen
           }));
-        setOnlineCount(users.length);
+          
+        // Deduplicate instances to fix wrong inflated counts
+        const uniqueHandles = new Set();
+        let anonCount = 0;
+        
+        users.forEach(u => {
+          if (u.cfHandle) {
+            uniqueHandles.add(u.cfHandle);
+          } else {
+            anonCount++;
+          }
+        });
+        
+        setOnlineCount(uniqueHandles.size + anonCount);
         setOnlineUsers(users);
       } else {
         setOnlineCount(0);

@@ -138,6 +138,7 @@ const CardNav = ({
       links: [
         { label: 'My Problems', page: isVerified ? 'problems' : 'profile', locked: !isVerified },
         { label: 'Upsolve', page: isVerified ? 'upsolve' : 'profile', locked: !isVerified },
+        { label: 'Rating Grind', page: isVerified ? 'rating-grind' : 'profile', locked: !isVerified },
       ],
     },
   ];

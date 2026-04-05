@@ -79,7 +79,7 @@ export const setupPresence = (userId, cfHandle = null) => {
   const userStatusRef = ref(rtdb, `presence/${userId}`);
   const connectedRef = ref(rtdb, '.info/connected');
 
-  onValue(connectedRef, (snapshot) => {
+  const unsubscribe = onValue(connectedRef, (snapshot) => {
     if (snapshot.val() === true) {
       // User is connected
       set(userStatusRef, {
@@ -96,6 +96,18 @@ export const setupPresence = (userId, cfHandle = null) => {
       });
     }
   });
+
+  // Return teardown function for React cleanup
+  return () => {
+    unsubscribe();
+    // Force offline immediately instead of waiting for disconnect timeout
+    set(userStatusRef, {
+      online: false,
+      lastSeen: rtdbServerTimestamp(),
+      cfHandle: cfHandle
+    });
+    onDisconnect(userStatusRef).cancel();
+  };
 };
 
 export const getOnlineUsersRef = () => ref(rtdb, 'presence');

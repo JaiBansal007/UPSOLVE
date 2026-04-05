@@ -328,6 +328,38 @@ class CodeforcesAPI {
   }
 
   /**
+   * Get all contests to be used for division mapping
+   * @returns {Promise<Array>} Array of contest objects
+   */
+  async getAllContests() {
+    if (this.contestsCache && this.contestsCacheExpiry && Date.now() < this.contestsCacheExpiry) {
+      return this.contestsCache;
+    }
+
+    try {
+      const response = await fetch(`${CF_API_BASE}/contest.list`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.status !== 'OK') {
+        throw new Error(data.comment || 'API returned non-OK status');
+      }
+
+      this.contestsCache = data.result;
+      this.contestsCacheExpiry = Date.now() + this.CACHE_DURATION;
+
+      return data.result;
+    } catch (error) {
+      console.error('Error fetching all contests:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get contest standings with problems
    * @param {number} contestId - Contest ID
    * @param {number} from - Starting rank (default 1)
