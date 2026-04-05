@@ -4,7 +4,7 @@
   "version": "1.0",
   "description": "One-click add Codeforces problems to your Upsolve list.",
   "action": {
-    "default_icon": "icons/icon.png",
+    "default_icon": "icons/icon_128.png",
     "default_title": "Add to CF-Upsolve"
   },
   "permissions": [
@@ -14,8 +14,8 @@
     "service_worker": "background.js"
   },
   "icons": {
-    "16": "icons/icon.png",
-    "48": "icons/icon.png",
-    "128": "icons/icon.png"
+    "16": "icons/icon_128.png",
+    "48": "icons/icon_128.png",
+    "128": "icons/icon_128.png"
   }
 }
