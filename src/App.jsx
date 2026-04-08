@@ -32,7 +32,11 @@ function App() {
   const [cfHandle, setCfHandle] = useState('');
   const [loading, setLoading] = useState(false);
   const [cfApiStatus, setCfApiStatus] = useState('checking'); // checking, online, offline
-  const [currentPage, setCurrentPage] = useState('home'); // home, profile, problems, compare, upsolve, admin
+  const [currentPage, setCurrentPage] = useState(() => window.localStorage.getItem('currentPage') || 'home'); // home, profile, problems, compare, upsolve, admin
+
+  useEffect(() => {
+    window.localStorage.setItem('currentPage', currentPage);
+  }, [currentPage]);
   const darkMode = true; // Always dark mode
   const [isVerified, setIsVerified] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);

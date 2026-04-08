@@ -32,58 +32,59 @@ export default function RatingGrind({ darkMode, cfHandle }) {
     localStorage.setItem('rg_tags', JSON.stringify(selectedTags));
   }, [rating, divType, selectedStatuses, selectedTags]);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const promises = [
-          codeforcesAPI.fetchAllProblems(),
-          codeforcesAPI.getAllContests()
-        ];
-        
-        if (cfHandle) {
-          promises.push(codeforcesAPI.fetchUserSubmissions(cfHandle));
-        }
-
-        const results = await Promise.all(promises);
-        const probs = results[0];
-        const conts = results[1];
-        const subs = cfHandle ? results[2] : [];
-
-        setProblems(probs);
-        
-        const map = {};
-        conts.forEach(c => {
-          map[c.id] = c.name;
-        });
-        setContestsMap(map);
-
-        const statusMap = {};
-        if (subs) {
-          subs.forEach(sub => {
-            const key = `${sub.problem.contestId}${sub.problem.index}`;
-            if (sub.verdict === 'OK') {
-              statusMap[key] = 'AC';
-            } else {
-              if (statusMap[key] !== 'AC') {
-                statusMap[key] = 'WA';
-              }
-            }
-          });
-        }
-        setProblemStatus(statusMap);
-
-        const tagSet = new Set();
-        probs.forEach(p => {
-          if (p.tags) p.tags.forEach(t => tagSet.add(t));
-        });
-        setAllTags(Array.from(tagSet).sort());
-
-      } catch (err) {
-        console.error("Failed to fetch CF data", err);
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const promises = [
+        codeforcesAPI.fetchAllProblems(),
+        codeforcesAPI.getAllContests()
+      ];
+      
+      if (cfHandle) {
+        promises.push(codeforcesAPI.fetchUserSubmissions(cfHandle));
       }
-      setLoading(false);
-    };
+
+      const results = await Promise.all(promises);
+      const probs = results[0];
+      const conts = results[1];
+      const subs = cfHandle ? results[2] : [];
+
+      setProblems(probs);
+      
+      const map = {};
+      conts.forEach(c => {
+        map[c.id] = c.name;
+      });
+      setContestsMap(map);
+
+      const statusMap = {};
+      if (subs) {
+        subs.forEach(sub => {
+          const key = `${sub.problem.contestId}${sub.problem.index}`;
+          if (sub.verdict === 'OK') {
+            statusMap[key] = 'AC';
+          } else {
+            if (statusMap[key] !== 'AC') {
+              statusMap[key] = 'WA';
+            }
+          }
+        });
+      }
+      setProblemStatus(statusMap);
+
+      const tagSet = new Set();
+      probs.forEach(p => {
+        if (p.tags) p.tags.forEach(t => tagSet.add(t));
+      });
+      setAllTags(Array.from(tagSet).sort());
+
+    } catch (err) {
+      console.error("Failed to fetch CF data", err);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
     fetchData();
   }, [cfHandle]);
 
@@ -148,9 +149,21 @@ export default function RatingGrind({ darkMode, cfHandle }) {
   return (
     <div className="flex flex-col gap-6">
       <div className={`p-6 rounded-2xl border ${darkMode ? 'bg-[#111] border-gray-800' : 'bg-white border-gray-200'}`}>
-        <h2 className="text-2xl font-bold mb-4 bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text text-transparent">
-          Rating Grind
-        </h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text text-transparent">
+            Rating Grind
+          </h2>
+          <button 
+            onClick={fetchData} 
+            disabled={loading}
+            className={`p-2 rounded-lg transition-colors border ${darkMode ? 'bg-[#111] border-gray-800 hover:bg-[#1a1a1a] text-gray-400' : 'bg-white border-gray-200 hover:bg-gray-50 text-gray-500'} ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            title="Refresh Data"
+          >
+            <svg className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
+        </div>
         <p className={`text-sm mb-6 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
           Practice specific problem types. Customize filters and tags to hone your skills. Shows up to 100 problems.
         </p>
