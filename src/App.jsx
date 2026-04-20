@@ -9,6 +9,8 @@ import Landing from './components/Landing';
 import BugReport from './components/BugReport';
 import AdminReports from './components/AdminReports';
 import RatingGrind from './components/RatingGrind';
+import HundredHard from './components/HundredHard';
+import ProfileAnalysis from './components/ProfileAnalysis';
 import { AuthProvider } from './contexts/AuthContext';
 import { storage } from './services/firebaseStorage';
 import { codeforcesAPI } from './services/codeforcesApi';
@@ -435,6 +437,14 @@ function App() {
           ) : currentPage === 'rating-grind' ? (
             <div className="mb-6">
               <RatingGrind darkMode={darkMode} cfHandle={cfHandle} />
+            </div>
+          ) : currentPage === '100-hard' ? (
+            <div className="mb-6">
+              <HundredHard darkMode={darkMode} cfHandle={cfHandle} />
+            </div>
+          ) : currentPage === 'analysis' ? (
+            <div className="mb-6">
+              <ProfileAnalysis darkMode={darkMode} cfHandle={cfHandle} />
             </div>
           ) : currentPage === 'admin' && cfHandle === 'Jx07' ? (
             <div className="mb-6">

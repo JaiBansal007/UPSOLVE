@@ -136,9 +136,11 @@ const CardNav = ({
       gradientTo: '#130f22',
       borderColor: '#2d1f5e55',
       links: [
-        { label: 'My Problems', page: isVerified ? 'problems' : 'profile', locked: !isVerified },
-        { label: 'Upsolve', page: isVerified ? 'upsolve' : 'profile', locked: !isVerified },
-        { label: 'Rating Grind', page: isVerified ? 'rating-grind' : 'profile', locked: !isVerified },
+        { label: 'My Problems', page: isVerified ? 'problems'    : 'profile', locked: !isVerified },
+        { label: 'Upsolve',     page: isVerified ? 'upsolve'     : 'profile', locked: !isVerified },
+        { label: 'Rating Grind',page: isVerified ? 'rating-grind': 'profile', locked: !isVerified },
+        { label: '100 Hard 🔥', page: isVerified ? '100-hard'    : 'profile', locked: !isVerified },
+        { label: 'Analysis 📊', page: isVerified ? 'analysis'    : 'profile', locked: !isVerified },
       ],
     },
   ];
