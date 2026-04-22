@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { storage } from '../services/firebaseStorage';
+import { toast } from 'react-hot-toast';
 
 export default function Settings({ onSettingsChange, darkMode }) {
   const [cfHandle, setCfHandle] = useState('');
@@ -29,7 +30,7 @@ export default function Settings({ onSettingsChange, darkMode }) {
       }
     } catch (error) {
       console.error('Error saving handle:', error);
-      alert('Failed to save handle. Please try again.');
+      toast.error('Failed to save handle. Please try again.');
     }
   };
 

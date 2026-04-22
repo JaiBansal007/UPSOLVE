@@ -1,5 +1,6 @@
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../App';
+import { toast } from 'react-hot-toast';
 
 export default function AuthButton() {
   const { user, login, logout, isGoogleUser } = useAuth();
@@ -9,7 +10,7 @@ export default function AuthButton() {
     try {
       await login();
     } catch (error) {
-      alert('Failed to sign in. Please try again.');
+      toast.error('Failed to sign in. Please try again.');
     }
   };
 
@@ -17,7 +18,7 @@ export default function AuthButton() {
     try {
       await logout();
     } catch (error) {
-      alert('Failed to sign out. Please try again.');
+      toast.error('Failed to sign out. Please try again.');
     }
   };
 

@@ -374,6 +374,90 @@ class FirebaseStorageService {
       return null;
     }
   }
+  // ─────────────────────────────────────────────
+  // Pre-Solve entries (personal solution vault)
+  // ─────────────────────────────────────────────
+
+  /**
+   * Get all pre-solve entries for a CF handle
+   * @param {string} cfHandle - Codeforces handle
+   * @returns {Promise<Array>} Array of pre-solve entry objects
+   */
+  async getPresolveEntries(cfHandle) {
+    if (!cfHandle) return [];
+    try {
+      const ref = collection(db, `cfHandles/${cfHandle}/presolve`);
+      const q = query(ref, orderBy('addedAt', 'desc'));
+      const snap = await getDocs(q);
+      const entries = [];
+      snap.forEach((d) => entries.push({ ...d.data(), firestoreId: d.id }));
+      return entries;
+    } catch (error) {
+      console.error('Error getting pre-solve entries:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Add or overwrite a pre-solve entry
+   * @param {Object} entry - Entry object (must include id)
+   * @param {string} cfHandle - Codeforces handle
+   * @returns {Promise<Array>} Updated array of entries
+   */
+  async addPresolveEntry(entry, cfHandle) {
+    if (!cfHandle) throw new Error('CF handle is required');
+    try {
+      const ref = collection(db, `cfHandles/${cfHandle}/presolve`);
+      const newEntry = {
+        ...entry,
+        addedAt: new Date().toISOString(),
+        solvedOnCF: entry.solvedOnCF || false,
+        lastChecked: null,
+      };
+      await setDoc(doc(ref, newEntry.id), newEntry);
+      return await this.getPresolveEntries(cfHandle);
+    } catch (error) {
+      console.error('Error adding pre-solve entry:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update fields on an existing pre-solve entry
+   * @param {string} entryId - Entry ID
+   * @param {Object} updates - Fields to update
+   * @param {string} cfHandle - Codeforces handle
+   * @returns {Promise<Array>} Updated array of entries
+   */
+  async updatePresolveEntry(entryId, updates, cfHandle) {
+    if (!cfHandle) throw new Error('CF handle is required');
+    try {
+      const ref = collection(db, `cfHandles/${cfHandle}/presolve`);
+      await updateDoc(doc(ref, entryId), updates);
+      return await this.getPresolveEntries(cfHandle);
+    } catch (error) {
+      console.error('Error updating pre-solve entry:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Remove a pre-solve entry
+   * @param {string} entryId - Entry ID
+   * @param {string} cfHandle - Codeforces handle
+   * @returns {Promise<Array>} Updated array of entries
+   */
+  async removePresolveEntry(entryId, cfHandle) {
+    if (!cfHandle) throw new Error('CF handle is required');
+    try {
+      const ref = collection(db, `cfHandles/${cfHandle}/presolve`);
+      await deleteDoc(doc(ref, entryId));
+      return await this.getPresolveEntries(cfHandle);
+    } catch (error) {
+      console.error('Error removing pre-solve entry:', error);
+      throw error;
+    }
+  }
 }
 
 // Export singleton instance

@@ -22,31 +22,30 @@ const CardNav = ({
 
   const calculateHeight = () => {
     const navEl = navRef.current;
-    if (!navEl) return 300;
-    const isMobile = window.matchMedia('(max-width: 768px)').matches;
-    if (isMobile) {
-      const contentEl = navEl.querySelector('.card-nav-content');
-      if (contentEl) {
-        const prev = {
-          vis: contentEl.style.visibility,
-          pe: contentEl.style.pointerEvents,
-          pos: contentEl.style.position,
-          h: contentEl.style.height,
-        };
-        contentEl.style.visibility = 'visible';
-        contentEl.style.pointerEvents = 'auto';
-        contentEl.style.position = 'static';
-        contentEl.style.height = 'auto';
-        contentEl.offsetHeight;
-        const height = 64 + contentEl.scrollHeight + 16;
-        contentEl.style.visibility = prev.vis;
-        contentEl.style.pointerEvents = prev.pe;
-        contentEl.style.position = prev.pos;
-        contentEl.style.height = prev.h;
-        return height;
-      }
+    if (!navEl) return 320;
+    const contentEl = navEl.querySelector('.card-nav-content');
+    if (contentEl) {
+      // Temporarily make content measurable regardless of visibility
+      const prev = {
+        vis: contentEl.style.visibility,
+        pe: contentEl.style.pointerEvents,
+        pos: contentEl.style.position,
+        h: contentEl.style.height,
+      };
+      contentEl.style.visibility = 'visible';
+      contentEl.style.pointerEvents = 'auto';
+      contentEl.style.position = 'static';
+      contentEl.style.height = 'auto';
+      // Force reflow so scrollHeight is accurate
+      void contentEl.offsetHeight;
+      const height = 64 + contentEl.scrollHeight + 16;
+      contentEl.style.visibility = prev.vis;
+      contentEl.style.pointerEvents = prev.pe;
+      contentEl.style.position = prev.pos;
+      contentEl.style.height = prev.h;
+      return height;
     }
-    return 300;
+    return 320;
   };
 
   const createTimeline = () => {
@@ -136,11 +135,12 @@ const CardNav = ({
       gradientTo: '#130f22',
       borderColor: '#2d1f5e55',
       links: [
-        { label: 'My Problems', page: isVerified ? 'problems'    : 'profile', locked: !isVerified },
-        { label: 'Upsolve',     page: isVerified ? 'upsolve'     : 'profile', locked: !isVerified },
-        { label: 'Rating Grind',page: isVerified ? 'rating-grind': 'profile', locked: !isVerified },
-        { label: '100 Hard 🔥', page: isVerified ? '100-hard'    : 'profile', locked: !isVerified },
-        { label: 'Analysis 📊', page: isVerified ? 'analysis'    : 'profile', locked: !isVerified },
+        { label: 'My Problems',   page: isVerified ? 'problems'    : 'profile', locked: !isVerified },
+        { label: 'Upsolve',       page: isVerified ? 'upsolve'     : 'profile', locked: !isVerified },
+        { label: 'Rating Grind',  page: isVerified ? 'rating-grind': 'profile', locked: !isVerified },
+        { label: '100 Hard 🔥',   page: isVerified ? '100-hard'    : 'profile', locked: !isVerified },
+        { label: 'Analysis 📊',   page: isVerified ? 'analysis'    : 'profile', locked: !isVerified },
+        { label: 'Pre-Solve 🧠',  page: isVerified ? 'presolve'    : 'profile', locked: !isVerified },
       ],
     },
   ];

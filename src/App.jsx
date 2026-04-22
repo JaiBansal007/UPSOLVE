@@ -1,4 +1,5 @@
 import { useState, useEffect, createContext, useContext } from 'react';
+import { Toaster, toast } from 'react-hot-toast';
 import ProblemForm from './components/ProblemForm';
 import ProblemList from './components/ProblemList';
 import UserComparison from './components/UserComparison';
@@ -11,6 +12,7 @@ import AdminReports from './components/AdminReports';
 import RatingGrind from './components/RatingGrind';
 import HundredHard from './components/HundredHard';
 import ProfileAnalysis from './components/ProfileAnalysis';
+import PreSolve from './components/PreSolve';
 import { AuthProvider } from './contexts/AuthContext';
 import { storage } from './services/firebaseStorage';
 import { codeforcesAPI } from './services/codeforcesApi';
@@ -189,7 +191,7 @@ function App() {
           // Parse the URL
           const parsed = codeforcesAPI.parseProblemInput(decodeURIComponent(addUrl));
           if (!parsed) {
-            alert("CF-Upsolve Companion Error: Could not parse the Codeforces URL.");
+            toast.error("Could not parse the Codeforces URL.");
             return;
           }
           
@@ -212,11 +214,11 @@ function App() {
             
             await handleProblemAdded(fullProblemData);
           } else {
-            alert("CF-Upsolve: Could not fetch problem from Codeforces. API might be rate-limited.");
+            toast.error("Could not fetch problem from Codeforces. API might be rate-limited.");
           }
         } catch (error) {
           console.error("Deep link error:", error);
-          alert("CF-Upsolve Companion Error: " + error.message);
+          toast.error("CF-Upsolve Companion Error: " + error.message);
         }
       }
     };
@@ -269,7 +271,7 @@ function App() {
       const updatedProblems = await storage.addProblem(problemWithStatus, cfHandle);
       setProblems(updatedProblems);
     } catch (error) {
-      alert(error.message);
+      toast.error(error.message);
     } finally {
       setLoading(false);
     }
@@ -279,14 +281,15 @@ function App() {
     if (window.confirm('Are you sure you want to delete this problem?')) {
       try {
         if (!cfHandle) {
-          alert('Please complete your Profile setup.');
+          toast.error('Please complete your Profile setup.');
           return;
         }
         const updatedProblems = await storage.removeProblem(problemId, cfHandle);
         setProblems(updatedProblems);
+        toast.success('Problem deleted.');
       } catch (error) {
         console.error('Error deleting problem:', error);
-        alert('Failed to delete problem. Please try again.');
+        toast.error('Failed to delete problem. Please try again.');
       }
     }
   };
@@ -294,14 +297,14 @@ function App() {
   const handleToggleSolved = async (problemId) => {
     try {
       if (!cfHandle) {
-        alert('Please complete your Profile setup.');
+        toast.error('Please complete your Profile setup.');
         return;
       }
       const updatedProblems = await storage.toggleSolved(problemId, cfHandle);
       setProblems(updatedProblems);
     } catch (error) {
       console.error('Error toggling solved status:', error);
-      alert('Failed to update problem. Please try again.');
+      toast.error('Failed to update problem. Please try again.');
     }
   };
 
@@ -446,6 +449,19 @@ function App() {
             <div className="mb-6">
               <ProfileAnalysis darkMode={darkMode} cfHandle={cfHandle} />
             </div>
+          ) : currentPage === 'presolve' ? (
+            <div className="mb-6">
+              {!isVerified ? (
+                <div className="border rounded-xl p-8 text-center bg-purple-900/20 border-purple-700">
+                  <span className="text-4xl mb-4 block">🔒</span>
+                  <h3 className="text-xl font-semibold mb-2 text-purple-300">Profile Setup Required</h3>
+                  <p className="mb-4 text-purple-200">Complete your profile setup to access the Pre-Solve vault.</p>
+                  <button onClick={() => setCurrentPage('profile')} className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">Go to Profile</button>
+                </div>
+              ) : (
+                <PreSolve cfHandle={cfHandle} darkMode={darkMode} />
+              )}
+            </div>
           ) : currentPage === 'admin' && cfHandle === 'Jx07' ? (
             <div className="mb-6">
               <AdminReports darkMode={darkMode} />
@@ -536,6 +552,27 @@ function App() {
       </div>
     </ThemeContext.Provider>
     <Analytics />
+    <Toaster
+      position="bottom-right"
+      toastOptions={{
+        duration: 3000,
+        style: {
+          background: '#0e0b1a',
+          color: '#e2e8f0',
+          border: '1px solid rgba(139,92,246,0.3)',
+          borderRadius: '12px',
+          fontSize: '13px',
+          fontWeight: '500',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+        },
+        success: {
+          iconTheme: { primary: '#34d399', secondary: '#0e0b1a' },
+        },
+        error: {
+          iconTheme: { primary: '#f87171', secondary: '#0e0b1a' },
+        },
+      }}
+    />
     </AuthProvider>
   );
 }
